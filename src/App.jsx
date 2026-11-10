@@ -1,18 +1,150 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Box,Plus,Upload,MessageSquare,Settings,Send,Sparkles,PanelLeft,Download,RotateCcw,Layers,ChevronDown,FileBox} from 'lucide-react';
 import ModelViewer from './ModelViewer.jsx';
+
 const formats=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
+const STORAGE_KEY='nova-studio-conversation-v1';
+const welcomeMessage={role:'assistant',text:'Hello! I’m Nova. You can talk with me about 3D design, software, ideas or everyday questions. I’ll keep the recent conversation on this device so we can continue after a refresh.'};
+
+function readSavedMessages(){
+ try{
+  const parsed=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+  if(Array.isArray(parsed)){
+   const valid=parsed.filter(item=>
+    item&&['user','assistant'].includes(item.role)&&typeof item.text==='string'
+   ).slice(-80);
+   if(valid.length)return valid;
+  }
+ }catch{}
+ return [welcomeMessage];
+}
+
 export default function App(){
  const viewerRef=useRef(null);
- const [file,setFile]=useState(null),[messages,setMessages]=useState([{role:'assistant',text:'Welcome to Nova 3D AI Studio. Upload a 3D asset to inspect it, or describe what you want to create. AI generation will connect when a provider key is configured.'}]),[prompt,setPrompt]=useState(''),[model,setModel]=useState('Nova Vision'),[busy,setBusy]=useState(false),[dragging,setDragging]=useState(false),[stats,setStats]=useState(null),[gridOn,setGridOn]=useState(true),[apiReady,setApiReady]=useState(false);
- useEffect(()=>{fetch('/api/health').then(r=>r.json()).then(data=>setApiReady(Boolean(data.configured))).catch(()=>setApiReady(false));},[]);
- const supported=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
- const acceptFile=f=>{if(!f)return;const ext=f.name.split('.').pop().toLowerCase();if(!supported.includes(ext)){setMessages(m=>[...m,{role:'assistant',text:'Unsupported extension: .'+ext+'. Supported: '+supported.join(', ')}]);return;}setFile(f);setStats(null);setMessages(m=>[...m,{role:'assistant',text:'Imported '+f.name+'. The viewport will frame the model automatically.'}]);};
- const upload=e=>{acceptFile(e.target.files?.[0]);e.target.value='';};
- const onDrop=e=>{e.preventDefault();setDragging(false);acceptFile(e.dataTransfer.files?.[0]);};
- const send=async()=>{if(!prompt.trim())return;const text=prompt.trim();setPrompt('');setMessages(m=>[...m,{role:'user',text}]);setBusy(true);try{const extension=file?.name.split('.').pop().toLowerCase();const asset=file?{filename:file.name,format:extension,stats:stats||null}:null;const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,model,asset})});const data=await res.json();setMessages(m=>[...m,{role:'assistant',text:data.reply||data.error||'AI service is not configured yet.'}]);}catch{setMessages(m=>[...m,{role:'assistant',text:'AI backend is not connected. Configure an AI provider on the server to enable chat and generation.'}]);}finally{setBusy(false)}};
- return <div className="shell"><aside className="sidebar"><div className="brand"><div className="brandmark"><Box size={21}/></div><div><b>NOVA</b><small>3D AI STUDIO</small></div></div><button className="new"><Plus size={16}/> New project</button><div className="navlabel">WORKSPACE</div><div className="nav active"><Layers size={17}/> Studio</div><div className="nav"><MessageSquare size={17}/> Conversations</div><div className="nav"><FileBox size={17}/> Assets</div><div className="sidebottom"><div className="nav"><Settings size={17}/> Settings</div><div className="profile"><div className="avatar">N</div><div><b>Local workspace</b><small>Personal plan</small></div></div></div></aside>
- <main className="main"><header><div className="crumb"><PanelLeft size={17}/><span>Workspace</span><i>/</i><b>Untitled project</b></div><div className="headerRight"><span className="status"><span/> {apiReady?'AI connected':'AI not configured'}</span><button className="share" onClick={()=>viewerRef.current?.exportGLB().catch(e=>setMessages(m=>[...m,{role:"assistant",text:e.message}]))}><Download size={14}/> Export GLB</button></div></header>
- <div className="workspace"><section className="viewportPanel"><div className="paneltop"><div><b>3D VIEWPORT</b><small>{file?file.name:'No asset loaded'}</small></div><div className="tools"><label className="toolbtn"><Upload size={15}/> Import<input type="file" accept=".glb,.gltf,.fbx,.obj,.stl,.ply,.3mf,.dae,.usdz" onChange={upload} hidden/></label><button className="toolbtn" onClick={()=>setGridOn(viewerRef.current?.toggleGrid()??gridOn)}><Layers size={15}/> Grid {gridOn?"On":"Off"}</button><button className="toolbtn" onClick={()=>{setFile(null);setStats(null)}}><RotateCcw size={15}/> Clear</button></div></div><div className={"view "+(dragging?"dragging":"")} onDragOver={e=>{e.preventDefault();setDragging(true)}} onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget))setDragging(false)}} onDrop={onDrop}><ModelViewer ref={viewerRef} key={file?.name||"empty"} file={file} onLoaded={setStats}/>{file&&stats&&<div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles</div>}{dragging&&<div className="dropcover">Drop your 3D file to import</div>}{!file&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect it in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(x=>'.'+x).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ and more</small></div>}</div><div className="viewfoot"><span><span className="dot"/> REAL-TIME VIEWPORT</span><span>Orbit · Pan · Zoom</span></div></section>
- <aside className="assistant"><div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>3D creative copilot</small></div><button className="dots">···</button></div><div className="modelpick"><span>MODEL</span><button onClick={()=>setModel(model==='Nova Vision'?'Nova Reasoner':'Nova Vision')}>{model}<ChevronDown size={14}/></button></div><div className="messages">{messages.map((m,i)=><div className={'message '+m.role} key={i}><div className="msgavatar">{m.role==='assistant'?<Sparkles size={14}/>: 'Y'}</div><div className="bubble">{m.text}</div></div>)}{busy&&<div className="typing">Nova is thinking…</div>}</div><div className="suggestions"><button onClick={()=>setPrompt('Explain the geometry and materials of this model.')}>Analyze my model</button><button onClick={()=>setPrompt('Give me ideas to improve this 3D asset.')}>Improve this asset</button></div><div className="composer"><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}} placeholder="Ask Nova about your 3D project…"/><div className="composefoot"><span><Sparkles size={13}/> AI tools</span><button disabled={!prompt.trim()||busy} onClick={send}><Send size={15}/></button></div></div><div className="disclaimer">AI responses require a configured provider.</div></aside></div></main></div>
+ const [file,setFile]=useState(null);
+ const [messages,setMessages]=useState(readSavedMessages);
+ const [prompt,setPrompt]=useState('');
+ const [model,setModel]=useState('Nova Vision');
+ const [busy,setBusy]=useState(false);
+ const [dragging,setDragging]=useState(false);
+ const [stats,setStats]=useState(null);
+ const [gridOn,setGridOn]=useState(true);
+ const [apiReady,setApiReady]=useState(false);
+
+ useEffect(()=>{
+  fetch('/api/v1/health')
+   .then(response=>response.json())
+   .then(data=>setApiReady(Boolean(data.configured)))
+   .catch(()=>setApiReady(false));
+ },[]);
+
+ useEffect(()=>{
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(messages.slice(-80)))}
+  catch{/* Browser storage can be unavailable or full. */}
+ },[messages]);
+
+ const acceptFile=selectedFile=>{
+  if(!selectedFile)return;
+  const extension=selectedFile.name.split('.').pop().toLowerCase();
+  if(!formats.includes(extension)){
+   setMessages(current=>[...current,{role:'assistant',text:'Unsupported extension: .'+extension+'. Supported formats: '+formats.join(', ')}]);
+   return;
+  }
+  setFile(selectedFile);
+  setStats(null);
+  setMessages(current=>[...current,{role:'assistant',text:'Imported '+selectedFile.name+'. I can use its structural statistics in our conversation, but I cannot visually inspect the model from statistics alone.'}]);
+ };
+
+ const upload=event=>{
+  acceptFile(event.target.files?.[0]);
+  event.target.value='';
+ };
+ const onDrop=event=>{
+  event.preventDefault();
+  setDragging(false);
+  acceptFile(event.dataTransfer.files?.[0]);
+ };
+ const newProject=()=>{
+  setFile(null);
+  setStats(null);
+  setPrompt('');
+  setMessages([welcomeMessage]);
+ };
+ const send=async()=>{
+  const text=prompt.trim();
+  if(!text||busy)return;
+  setPrompt('');
+  const conversation=[...messages,{role:'user',text}].slice(-16);
+  setMessages(conversation);
+  setBusy(true);
+  try{
+   const extension=file?.name.split('.').pop().toLowerCase();
+   const asset=file?{filename:file.name,format:extension,stats:stats||null}:null;
+   const response=await fetch('/api/v1/chat',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+     messages:conversation.map(item=>({role:item.role,content:item.text})),
+     mode:model,
+     asset
+    })
+   });
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'Nova API request failed (HTTP '+response.status+').');
+   if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('Nova API returned an empty response.');
+   setMessages(current=>[...current,{role:'assistant',text:data.reply.trim()}].slice(-80));
+  }catch(error){
+   setMessages(current=>[...current,{role:'assistant',text:error.message||'Nova could not connect to its API. Check the server and provider configuration.'}].slice(-80));
+  }finally{
+   setBusy(false);
+  }
+ };
+
+ return <div className="shell">
+  <aside className="sidebar">
+   <div className="brand"><div className="brandmark"><Box size={21}/></div><div><b>NOVA</b><small>3D AI STUDIO</small></div></div>
+   <button className="new" onClick={newProject}><Plus size={16}/> New project</button>
+   <div className="navlabel">WORKSPACE</div>
+   <div className="nav active"><Layers size={17}/> Studio</div>
+   <button className="nav" onClick={()=>setMessages(readSavedMessages())}><MessageSquare size={17}/> Conversations</button>
+   <button className="nav" onClick={()=>document.getElementById('nova-file-input')?.click()}><FileBox size={17}/> Assets</button>
+   <div className="sidebottom">
+    <a className="nav" href="/api/v1/openapi.json" target="_blank" rel="noreferrer"><Settings size={17}/> Nova API docs</a>
+    <div className="profile"><div className="avatar">N</div><div><b>Local workspace</b><small>Personal plan</small></div></div>
+   </div>
+  </aside>
+  <main className="main">
+   <header>
+    <div className="crumb"><PanelLeft size={17}/><span>Workspace</span><i>/</i><b>Untitled project</b></div>
+    <div className="headerRight"><span className="status"><span/> {apiReady?'Nova API connected':'Nova API not configured'}</span><button className="share" onClick={()=>viewerRef.current?.exportGLB().catch(error=>setMessages(current=>[...current,{role:'assistant',text:error.message}]))}><Download size={14}/> Export GLB</button></div>
+   </header>
+   <div className="workspace">
+    <section className="viewportPanel">
+     <div className="paneltop">
+      <div><b>3D VIEWPORT</b><small>{file?file.name:'No asset loaded'}</small></div>
+      <div className="tools">
+       <label className="toolbtn"><Upload size={15}/> Import<input id="nova-file-input" type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label>
+       <button className="toolbtn" onClick={()=>setGridOn(viewerRef.current?.toggleGrid()??gridOn)}><Layers size={15}/> Grid {gridOn?'On':'Off'}</button>
+       <button className="toolbtn" onClick={()=>{setFile(null);setStats(null)}}><RotateCcw size={15}/> Clear</button>
+      </div>
+     </div>
+     <div className={'view '+(dragging?'dragging':'')} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget))setDragging(false)}} onDrop={onDrop}>
+      <ModelViewer ref={viewerRef} key={file?.name||'empty'} file={file} onLoaded={setStats}/>
+      {file&&stats&&<div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>}
+      {dragging&&<div className="dropcover">Drop your 3D file to import</div>}
+      {!file&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
+     </div>
+     <div className="viewfoot"><span><span className="dot"/> REAL-TIME VIEWPORT</span><span>Orbit · Pan · Zoom</span></div>
+    </section>
+    <aside className="assistant">
+     <div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>Conversational 3D copilot</small></div><button className="dots" onClick={newProject}>＋</button></div>
+     <div className="modelpick"><span>MODE</span><button onClick={()=>setModel(model==='Nova Vision'?'Nova Reasoner':'Nova Vision')}>{model}<ChevronDown size={14}/></button></div>
+     <div className="messages">{messages.map((message,index)=><div className={'message '+message.role} key={index}><div className="msgavatar">{message.role==='assistant'?<Sparkles size={14}/>:'Y'}</div><div className="bubble">{message.text}</div></div>)}{busy&&<div className="typing">Nova is thinking…</div>}</div>
+     <div className="suggestions"><button onClick={()=>setPrompt('Help me understand the structure of my 3D model.')}>Analyze my model</button><button onClick={()=>setPrompt('Give me ideas to improve this 3D asset.')}>Improve this asset</button></div>
+     <div className="composer"><textarea value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}}} placeholder="Talk naturally with Nova…" /><div className="composefoot"><span><Sparkles size={13}/> Multi-turn chat</span><button disabled={!prompt.trim()||busy} onClick={send}><Send size={15}/></button></div></div>
+     <div className="disclaimer">Recent conversation is saved on this device. Provider key stays on the server.</div>
+    </aside>
+   </div>
+  </main>
+ </div>;
 }
