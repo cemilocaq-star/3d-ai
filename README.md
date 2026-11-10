@@ -1,15 +1,13 @@
 # Nova 3D AI Studio
 
-A browser-based 3D asset workspace built with React, Vite, Three.js and the Nova API.
+A browser-based 3D asset workspace built with React, Vite and Three.js. Its offline prompt builder creates editable procedural models without a chat API.
 
 ## Run locally
 
 1. Install dependencies: `npm install`
-2. Copy `.env.example` to `.env` and set `NOVA_PROVIDER_API_KEY` on the server.
-3. Start the Nova API: `npm run server`
-4. In a second terminal, start the UI: `npm run dev`
+2. Start the UI: `npm run dev`
 
-The Vite development server proxies `/api` requests to the API on port 8787.
+The offline 3D model builder works without `.env`, an API key or a running backend. The optional chat feature still uses the server API when configured.
 
 ### Production run
 
@@ -81,7 +79,7 @@ The chat endpoint is limited to 20 authenticated requests per IP per minute and 
 - Inspect mesh, vertex, triangle, material and texture counts; scene bounds/dimensions; and bounded per-mesh geometry attributes including UVs, normals, vertex colors, skinning, morph targets, geometry types and material base colors. A compact mesh inspector is available in the viewport.
 - Export the currently loaded scene as binary GLB.
 - Nova can issue validated scene edits through its function-calling interface: rename an object, change a material color, adjust local position/rotation/scale, add a box/sphere/cylinder/torus primitive, or delete a non-root object.
-- Nova can start a new empty-canvas scene by adding primitives and combine them into simple compositions; these are basic geometric assemblies, not arbitrary high-detail text-to-3D meshes.
+- **Offline prompt-to-3D builder:** enter a description and tap **Create 3D**. It builds editable procedural templates for robots, houses, trees, cars, chairs and desk lamps directly in the browser, without any API key or internet connection. The resulting meshes can be selected, recolored, inspected and exported as GLB. This is template-based procedural generation, not a neural text-to-3D model; unsupported prompts currently produce a desk-lamp starter model.
 - The browser applies only the allow-listed scene operations and reports how many actually succeeded.
 - Asset metadata is validated server-side before it is included in Nova's conversation context. Nova is told that structural statistics are not a visual inspection.
 
