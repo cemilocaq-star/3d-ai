@@ -38,7 +38,10 @@ function applySceneActions(root,actions){
  const results=[];
  for(const action of Array.isArray(actions)?actions:[]){
   let target=null;
-  if(action.type!=='add_primitive')target=findObjectByName(root,action.objectName);
+  if(action.type!=='add_primitive'){
+   if(action.objectId)root.traverse(node=>{if(!target&&node.isMesh&&node.uuid===action.objectId)target=node});
+   if(!target)target=findObjectByName(root,action.objectName);
+  }
   if(action.type==='add_primitive'){
    const geometries={
     box:()=>new THREE.BoxGeometry(1,1,1),
