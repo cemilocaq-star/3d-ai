@@ -22,7 +22,7 @@ button,.toolbtn{min-height:36px}
 .mobile-nav{display:none}
 @media(max-width:680px){
  .mobile-nav{position:fixed;z-index:20;left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px max(12px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));background:#0b1019f5;border-top:1px solid #2a394f;backdrop-filter:blur(14px)}
- .mobile-nav button{min-height:46px;display:flex;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;border-radius:9px;background:transparent;color:#8e9db3;font:600 12px inherit;touch-action:manipulation}
+ .mobile-nav button{min-height:46px;display:flex;align-items:center;justify-content:center;gap:9px;border:1px solid transparent;border-radius:9px;background:transparent;color:#8e9db3;font:600 12px system-ui,sans-serif;touch-action:manipulation}
  .mobile-nav button.active{background:#192b43;border-color:#34547c;color:#e1efff}
  .main{min-height:100dvh;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
  .workspace{min-height:0}
