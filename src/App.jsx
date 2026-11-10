@@ -91,7 +91,7 @@ export default function App(){
   const image=event.target.files?.[0];
   event.target.value='';
   if(!image)return;
-  if(!image.type.startsWith('image/')){setMaterialMessage('Choose an image file.');return}
+  if(!['image/png','image/jpeg','image/webp'].includes(image.type)){setMaterialMessage('Choose a PNG, JPEG or WebP image.');return}
   const result=await viewerRef.current?.applyTexture(image);
   setMaterialMessage(result?.ok?'Texture applied to '+result.changed+' mesh(es).':result?.reason||'Texture could not be applied.');
  };
