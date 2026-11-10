@@ -55,6 +55,7 @@ The chat endpoint is limited to 20 requests per IP per minute and has a 45-secon
 - Inspect mesh, vertex, triangle, material and texture counts; scene bounds/dimensions; and a bounded summary of individual meshes.
 - Export the currently loaded scene as binary GLB.
 - Nova can issue validated scene edits through its function-calling interface: rename an object, change a material color, adjust local position/rotation/scale, add a box/sphere/cylinder/torus primitive, or delete a non-root object.
+- Nova can start a new empty-canvas scene by adding primitives and combine them into simple compositions; these are basic geometric assemblies, not arbitrary high-detail text-to-3D meshes.
 - The browser applies only the allow-listed scene operations and reports how many actually succeeded.
 - Asset metadata is validated server-side before it is included in Nova's conversation context. Nova is told that structural statistics are not a visual inspection.
 
