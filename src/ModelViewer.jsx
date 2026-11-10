@@ -142,7 +142,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const light=new THREE.DirectionalLight(0xffffff,2.5);
   light.position.set(4,7,5);
   scene.add(light);
-  let current=null,frame;
+  let frame;
   const grid=new THREE.GridHelper(12,24,0x344158,0x202b3b);
   scene.add(grid);
   const resize=()=>{
@@ -161,10 +161,16 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   };
   animate();
   state.current={
-   grid,current:null,
+   grid,current:null,scene,
+   clear:()=>{
+    const loaded=state.current.current;
+    if(loaded){scene.remove(loaded);disposeObject(loaded)}
+    state.current.current=null;
+    onLoaded(null);
+   },
    load:object=>{
-    if(current){scene.remove(current);disposeObject(current)}
-    current=object;
+    const previous=state.current.current;
+    if(previous){scene.remove(previous);disposeObject(previous)}
     state.current.current=object;
     scene.add(object);
     const bounds=new THREE.Box3().setFromObject(object);
@@ -187,7 +193,8 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    cancelAnimationFrame(frame);
    observer.disconnect();
    controls.dispose();
-   if(current)disposeObject(current);
+   const loaded=state.current.current;
+   if(loaded){scene.remove(loaded);disposeObject(loaded)}
    renderer.dispose();
    element.removeChild(renderer.domElement);
    state.current={};
@@ -201,14 +208,23 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    return state.current.grid.visible;
   },
   applyActions(actions){
-   const root=state.current.current;
+   let root=state.current.current;
+   if(!root&&Array.isArray(actions)&&actions.some(action=>action.type==='add_primitive')){
+    root=new THREE.Group();
+    root.name='Nova Generated Scene';
+    state.current.current=root;
+    state.current.scene.add(root);
+   }
    const results=applySceneActions(root,actions);
    if(root)onLoaded(measure(root));
    return results;
   },
+  clearScene(){
+   state.current.clear?.();
+  },
   async exportGLB(){
    const root=state.current.current;
-   if(!root)throw new Error('Import a model before exporting.');
+   if(!root)throw new Error('Create or import a scene before exporting.');
    const exporter=new GLTFExporter();
    const result=await new Promise((resolve,reject)=>exporter.parse(root,resolve,reject,{binary:true}));
    const blob=new Blob([result],{type:'model/gltf-binary'});
