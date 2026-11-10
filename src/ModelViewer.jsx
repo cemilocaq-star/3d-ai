@@ -243,6 +243,28 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    state.current.grid.visible=!state.current.grid.visible;
    return state.current.grid.visible;
   },
+  getDescendantMeshIds(objectId){
+   const root=state.current.current;
+   if(!root||typeof objectId!=='string')return [];
+   let group=null;
+   root.traverse(node=>{if(!group&&node.uuid===objectId)group=node});
+   if(!group)return [];
+   const ids=[];
+   group.traverse(node=>{if(node.isMesh)ids.push(node.uuid)});
+   return ids;
+  },
+  selectMeshes(meshIds){
+   const root=state.current.current;
+   if(!root||!Array.isArray(meshIds))return false;
+   const ids=new Set(meshIds.filter(id=>typeof id==='string'));
+   let first=null;
+   root.traverse(node=>{if(node.isMesh&&ids.has(node.uuid)&&!first)first=node});
+   if(!first)return false;
+   selectedMesh=first;
+   selectionBox.box.setFromObject(first);
+   selectionBox.visible=first.visible;
+   return true;
+  },
   selectMesh(meshId){
    const root=state.current.current;
    if(!root||typeof meshId!=='string')return false;
@@ -273,7 +295,10 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
     state.current.current=root;
     state.current.scene.add(root);
    }
-   const results=applySceneActions(root,actions);
+   const expanded=(Array.isArray(actions)?actions:[]).flatMap(action=>Array.isArray(action.objectIds)&&action.objectIds.length
+    ? action.objectIds.map(objectId=>({...action,objectId,objectIds:undefined}))
+    : [action]);
+   const results=applySceneActions(root,expanded);
    if(root)onLoaded(measure(root));
    return results;
   },
