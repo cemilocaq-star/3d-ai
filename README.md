@@ -9,7 +9,16 @@ A browser-based 3D asset workspace built with React, Vite, Three.js and the Nova
 3. Start the Nova API: `npm run server`
 4. In a second terminal, start the UI: `npm run dev`
 
-The Vite development server proxies `/api` requests to the API on port 8787. For deployment, run the API server and configure the web server to proxy `/api` to it.
+The Vite development server proxies `/api` requests to the API on port 8787.
+
+### Production run
+
+1. Set the server-side provider environment variables from `.env.example`.
+2. Build the frontend: `npm run build`.
+3. Start the single production server: `npm start`.
+4. Open `http://localhost:8787` (or the configured `PORT`).
+
+When `dist/index.html` exists, Express serves the production frontend and the Nova API from the same origin. A separate static frontend host or reverse proxy is not required. Keep the server-side provider key private. Do not expose this single-user prototype publicly until app-level authentication and stronger abuse controls are added.
 
 ## Nova API v1
 
