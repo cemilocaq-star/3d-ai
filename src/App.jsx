@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Box,Plus,Upload,MessageSquare,Settings,Send,Sparkles,PanelLeft,Download,RotateCcw,Layers,ChevronDown,FileBox} from 'lucide-react';
 import ModelViewer from './ModelViewer.jsx';
 
@@ -44,10 +44,10 @@ export default function App(){
   catch{/* Browser storage can be unavailable or full. */}
  },[messages]);
 
- const handleLoaded=nextStats=>{
+ const handleLoaded=useCallback(nextStats=>{
   setStats(nextStats);
   setSelectedMeshId(current=>nextStats?.meshDetails?.some(mesh=>mesh.id===current)?current:null);
- };
+ },[]);
  const acceptFile=selectedFile=>{
   if(!selectedFile)return;
   const extension=selectedFile.name.split('.').pop().toLowerCase();
