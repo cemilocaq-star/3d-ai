@@ -27,6 +27,65 @@ function getDimensions(object){
  const size=bounds.getSize(new THREE.Vector3());
  return{x:rounded(size.x),y:rounded(size.y),z:rounded(size.z)};
 }
+function findObjectByName(root,name){
+ let match=null;
+ root.traverse(node=>{if(!match&&node.name===name)match=node});
+ return match;
+}
+function applySceneActions(root,actions){
+ if(!root)return [];
+ const results=[];
+ for(const action of Array.isArray(actions)?actions:[]){
+  let target=null;
+  if(action.type!=='add_primitive')target=findObjectByName(root,action.objectName);
+  if(action.type==='add_primitive'){
+   const geometries={
+    box:()=>new THREE.BoxGeometry(1,1,1),
+    sphere:()=>new THREE.SphereGeometry(.5,32,24),
+    cylinder:()=>new THREE.CylinderGeometry(.5,.5,1,32),
+    torus:()=>new THREE.TorusGeometry(.4,.14,16,48)
+   };
+   const geometry=geometries[action.primitive]?.();
+   if(!geometry){results.push({type:action.type,ok:false,reason:'Unsupported primitive'});continue}
+   const object=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:action.color}));
+   object.name=action.name;
+   object.position.set(action.position.x,action.position.y,action.position.z);
+   object.scale.set(action.scale.x,action.scale.y,action.scale.z);
+   root.add(object);
+   results.push({type:action.type,ok:true,name:object.name});
+   continue;
+  }
+  if(!target){results.push({type:action.type,ok:false,reason:'Object not found: '+action.objectName});continue}
+  if(action.type==='rename_object'){
+   target.name=action.name;
+   results.push({type:action.type,ok:true,name:target.name});
+  }else if(action.type==='set_material_color'){
+   const list=Array.isArray(target.material)?target.material:[target.material];
+   const editable=list.filter(material=>material?.color?.set);
+   if(!editable.length){results.push({type:action.type,ok:false,reason:'Object has no editable color material'});continue}
+   editable.forEach(material=>{material.color.set(action.color);material.needsUpdate=true});
+   results.push({type:action.type,ok:true,name:target.name});
+  }else if(action.type==='set_transform'){
+   if(action.position)target.position.set(action.position.x,action.position.y,action.position.z);
+   if(action.rotation)target.rotation.set(
+    THREE.MathUtils.degToRad(action.rotation.x),
+    THREE.MathUtils.degToRad(action.rotation.y),
+    THREE.MathUtils.degToRad(action.rotation.z)
+   );
+   if(action.scale)target.scale.set(action.scale.x,action.scale.y,action.scale.z);
+   results.push({type:action.type,ok:true,name:target.name});
+  }else if(action.type==='delete_object'){
+   if(target===root||!target.parent){results.push({type:action.type,ok:false,reason:'The scene root cannot be deleted'});continue}
+   target.parent.remove(target);
+   disposeObject(target);
+   results.push({type:action.type,ok:true,name:target.name});
+  }else{
+   results.push({type:action.type,ok:false,reason:'Unsupported scene action'});
+  }
+ }
+ root.updateMatrixWorld(true);
+ return results;
+}
 function measure(root){
  root.updateMatrixWorld(true);
  let meshes=0,vertices=0,triangles=0;
@@ -139,6 +198,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    state.current.grid.visible=!state.current.grid.visible;
    return state.current.grid.visible;
   },
+  applyActions(actions){return applySceneActions(state.current.current,actions);},
   async exportGLB(){
    const root=state.current.current;
    if(!root)throw new Error('Import a model before exporting.');
