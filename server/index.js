@@ -46,7 +46,7 @@ app.post('/api/chat', createRateLimiter({ windowMs: 60_000, max: 20 }), async (r
   ].join(' ');
 
   const userContent = assetMetadata
-    ? 'Loaded asset metadata (basic statistics only; not a visual inspection): ' + JSON.stringify(assetMetadata) + '\\n\\nUser request: ' + message
+    ? 'Loaded asset metadata (basic statistics only; not a visual inspection): ' + JSON.stringify(assetMetadata) + '\n\nUser request: ' + message
     : message;
 
   try {
