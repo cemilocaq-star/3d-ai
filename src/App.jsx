@@ -55,9 +55,14 @@ export default function App(){
    setSelectedMeshIds(current=>{
     const next=new Set(current);
     unique.forEach(id=>next.has(id)?next.delete(id):next.add(id));
-    return [...next];
+    const selected=[...next].slice(0,20);
+    viewerRef.current?.selectMeshes(selected);
+    return selected;
    });
-  }else setSelectedMeshIds(unique);
+  }else{
+   viewerRef.current?.selectMeshes(unique);
+   setSelectedMeshIds(unique);
+  }
  };
  const selectMesh=(id,event)=>{
   if(!viewerRef.current?.selectMesh(id))return;
