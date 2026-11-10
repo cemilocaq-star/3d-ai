@@ -18,7 +18,8 @@
     "react-dom": "latest",
     "three": "latest",
     "lucide-react": "latest",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "dotenv": "^16.6.1"
   },
   "devDependencies": {}
 }
