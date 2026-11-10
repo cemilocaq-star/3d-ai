@@ -105,7 +105,8 @@ function healthResponse(_req, res) {
     provider: configured ? 'OpenAI-compatible' : null,
     model: configured ? providerModel : null,
     capabilities: ['multi-turn-chat', 'conversation-context', 'asset-metadata', 'safe-scene-edits'],
-    endpoints: ['/api/v1/health', '/api/v1/chat', '/api/v1/openapi.json']
+    authRequired: Boolean(appPassword),
+    endpoints: ['/api/v1/health', '/api/v1/auth/status', '/api/v1/auth/login', '/api/v1/auth/logout', '/api/v1/chat', '/api/v1/openapi.json']
   });
 }
 
@@ -125,6 +126,40 @@ app.get('/api/v1/openapi.json', (_req, res) => {
         get: {
           summary: 'Check Nova API status',
           responses: { '200': { description: 'API status and enabled capabilities' } }
+        }
+      },
+      '/api/v1/auth/status': {
+        get: {
+          summary: 'Check whether this workspace requires sign-in',
+          responses: { '200': { description: 'Password protection and current session status' } }
+        }
+      },
+      '/api/v1/auth/login': {
+        post: {
+          summary: 'Create a password-protected workspace session',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['password'],
+                  properties: { password: { type: 'string', maxLength: 256 } }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': { description: 'Session cookie created' },
+            '401': { description: 'Incorrect app password' },
+            '429': { description: 'Login attempts temporarily limited' }
+          }
+        }
+      },
+      '/api/v1/auth/logout': {
+        post: {
+          summary: 'Clear the current browser session cookie',
+          responses: { '200': { description: 'Session cookie cleared' } }
         }
       },
       '/api/v1/chat': {
@@ -191,7 +226,7 @@ app.get('/api/v1/openapi.json', (_req, res) => {
 
 const rateLimit = createRateLimiter({ windowMs: 60_000, max: 20 });
 
-app.post(['/api/v1/chat', '/api/chat'], rateLimit, requireAppAuth, async (req, res) => {
+app.post(['/api/v1/chat', '/api/chat'], requireAppAuth, rateLimit, async (req, res) => {
   const legacyMessage = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   const rawMessages = Array.isArray(req.body?.messages)
     ? req.body.messages
