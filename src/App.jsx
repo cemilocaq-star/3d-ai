@@ -36,6 +36,7 @@ export default function App(){
  const selectedMeshId=selectedMeshIds[selectedMeshIds.length-1]||null;
  const [gridOn,setGridOn]=useState(true);
  const [apiReady,setApiReady]=useState(false);
+ const [mobileTab,setMobileTab]=useState('studio');
 
  useEffect(()=>{
   fetch('/api/v1/health')
@@ -161,7 +162,7 @@ export default function App(){
   }
  };
 
- return <div className="shell">
+ return <div className={"shell mobile-"+mobileTab}>
   <aside className="sidebar">
    <div className="brand"><div className="brandmark"><Box size={21}/></div><div><b>NOVA</b><small>3D AI STUDIO</small></div></div>
    <button className="new" onClick={newProject}><Plus size={16}/> New project</button>
@@ -207,5 +208,9 @@ export default function App(){
     </aside>
    </div>
   </main>
+  <nav className="mobile-nav" aria-label="Mobile workspace">
+   <button className={mobileTab==='studio'?'active':''} aria-current={mobileTab==='studio'?'page':undefined} onClick={()=>setMobileTab('studio')}><Box size={18}/><span>Studio</span></button>
+   <button className={mobileTab==='chat'?'active':''} aria-current={mobileTab==='chat'?'page':undefined} onClick={()=>setMobileTab('chat')}><MessageSquare size={18}/><span>Nova</span></button>
+  </nav>
  </div>;
 }
