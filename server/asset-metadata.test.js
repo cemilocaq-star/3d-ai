@@ -71,3 +71,22 @@ test('returns null for empty or malformed metadata', () => {
   assert.equal(normalizeAssetMetadata([]), null);
   assert.equal(normalizeAssetMetadata({ stats: { meshes: -1 } }), null);
 });
+
+test('keeps bounded per-mesh geometry features and validates material colors', () => {
+  const result = normalizeAssetMetadata({
+    filename: 'character.glb',
+    format: 'glb',
+    stats: {
+      uvMeshes: 2, normalMeshes: 3, vertexColorMeshes: 1, skinnedMeshes: 1, morphMeshes: 1,
+      meshDetails: [{
+        name: 'Body', vertices: 100, triangles: 50, geometryType: 'SkinnedMeshGeometry',
+        hasUV: true, hasNormals: true, hasVertexColors: false, hasSkinning: true, morphTargets: true,
+        materialColors: ['#AABBCC', 'invalid', '#010203']
+      }]
+    }
+  });
+  assert.equal(result.stats.skinnedMeshes, 1);
+  assert.equal(result.stats.meshDetails[0].geometryType, 'SkinnedMeshGeometry');
+  assert.equal(result.stats.meshDetails[0].hasSkinning, true);
+  assert.deepEqual(result.stats.meshDetails[0].materialColors, ['#aabbcc', '#010203']);
+});
