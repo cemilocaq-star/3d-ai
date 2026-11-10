@@ -24,7 +24,7 @@ export default function App(){
  const [file,setFile]=useState(null);
  const [messages,setMessages]=useState(readSavedMessages);
  const [prompt,setPrompt]=useState('');
- const [model,setModel]=useState('Nova Vision');
+ const [model,setModel]=useState('Nova Studio');
  const [busy,setBusy]=useState(false);
  const [dragging,setDragging]=useState(false);
  const [stats,setStats]=useState(null);
