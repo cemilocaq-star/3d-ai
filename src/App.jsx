@@ -104,6 +104,7 @@ export default function App(){
    setMessages(current=>[...current,{role:'assistant',text:'This model is larger than 150 MB. For a smoother mobile experience, reduce the model size or export an optimized GLB.'}].slice(-80));
    return;
   }
+  viewerRef.current?.clearScene();
   setFile(selectedFile);
   setStats(null);
   setSelectedMeshIds([]);
@@ -120,6 +121,14 @@ export default function App(){
   event.preventDefault();
   setDragging(false);
   acceptFile(event.dataTransfer.files?.[0]);
+ };
+ const toggleMultiSelect=()=>{
+  if(multiSelectEnabled&&selectedMeshIds.length>1){
+   const keep=selectedMeshIds[selectedMeshIds.length-1];
+   viewerRef.current?.selectMeshes([keep]);
+   setSelectedMeshIds(keep?[keep]:[]);
+  }
+  setMultiSelectEnabled(value=>!value);
  };
  const clearAsset=()=>{
   viewerRef.current?.clearScene();
@@ -205,7 +214,7 @@ export default function App(){
       <div className="tools">
        <label className="toolbtn"><Upload size={15}/> Import<input id="nova-file-input" type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label>
        <button className="toolbtn" onClick={()=>setGridOn(viewerRef.current?.toggleGrid()??gridOn)}><Layers size={15}/> Grid {gridOn?'On':'Off'}</button>
-       <button className={'toolbtn '+(multiSelectEnabled?'active':'')} aria-pressed={multiSelectEnabled} onClick={()=>setMultiSelectEnabled(value=>!value)}><Layers size={15}/> Multi</button>
+       <button className={'toolbtn '+(multiSelectEnabled?'active':'')} aria-pressed={multiSelectEnabled} onClick={toggleMultiSelect}><Layers size={15}/> Multi</button>
        <button className="toolbtn" onClick={clearAsset}><RotateCcw size={15}/> Clear</button>
       </div>
      </div>
@@ -214,7 +223,7 @@ export default function App(){
       {loadProgress&&<div className="import-progress" role="status" aria-live="polite"><div><b>{loadProgress.phase||'Loading model'}</b><span>{loadProgress.percent===null?'Working…':Math.round(loadProgress.percent)+'%'}</span></div><div className="progress-track"><span className={loadProgress.percent===null?'indeterminate':''} style={{width:loadProgress.percent===null?'35%':loadProgress.percent+'%'}}/></div></div>}
       {stats&&<><div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>{stats.meshDetails?.length>0&&<details className="mesh-inspector"><summary>Mesh inspection · {stats.meshDetails.length}{stats.meshes>stats.meshDetails.length?' of '+stats.meshes:''}</summary><div className="mesh-list">{stats.meshDetails.map((mesh,index)=><div className={'mesh-row '+(selectedMeshIds.includes(mesh.id)?'selected':'')} key={mesh.id||index} role="button" tabIndex={0} aria-pressed={selectedMeshIds.includes(mesh.id)} onClick={event=>selectMesh(mesh.id,event)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();selectMesh(mesh.id,event)}}}><div className="mesh-row-head"><b>{mesh.name}</b><button className="visibility-toggle" onClick={event=>{event.stopPropagation();const visible=viewerRef.current?.toggleMeshVisibility(mesh.id);if(visible!==null&&visible!==undefined)setStats(current=>current?{...current,meshDetails:current.meshDetails.map(item=>item.id===mesh.id?{...item,visible}:item)}:current)}}>{mesh.visible?'Hide':'Show'}</button></div><span>{mesh.geometryType} · {mesh.vertices.toLocaleString()} vertices · {mesh.triangles.toLocaleString()} triangles</span><span>{mesh.dimensions?[mesh.dimensions.x,mesh.dimensions.y,mesh.dimensions.z].join(' × ')+' units':''}</span><span>{[mesh.hasUV?'UV':'',mesh.hasNormals?'Normals':'',mesh.hasVertexColors?'Vertex colors':'',mesh.hasSkinning?'Skinned':'',mesh.morphTargets?'Morph targets':''].filter(Boolean).join(' · ')||'No UV/normal/skin/morph flags detected'}</span>{mesh.materials?.length>0&&<span>Materials: {mesh.materials.join(', ')}</span>}{mesh.materialColors?.length>0&&<span className="swatches">{mesh.materialColors.map(color=><i key={color} title={color} style={{backgroundColor:color}}/>)} <small>{mesh.materialColors.join(' ')}</small></span>}</div>)}</div><details className="hierarchy-tree"><summary>Scene hierarchy · {stats.hierarchy?.length||0}{stats.hierarchy?.length>=200?' (first 200)':''} · {selectedMeshIds.length} selected</summary><div className="hierarchy-list">{(stats.hierarchy||[]).map(node=><div key={node.id} className={'hierarchy-node '+(node.kind==='Mesh'?'mesh-node':'group-node')+(selectedMeshIds.includes(node.id)?' selected':'')} style={{paddingLeft:8+node.depth*12}}>{node.kind==='Mesh'?<button className="hierarchy-select" onClick={event=>selectHierarchyNode(node,event)} aria-pressed={selectedMeshIds.includes(node.id)}><span className="hierarchy-kind">◈</span><span>{node.name}</span></button>:<button className="hierarchy-group" onClick={event=>selectHierarchyNode(node,event)}><span className="hierarchy-kind">▸</span>{node.name} <small>{node.kind}</small></button>}<button className="visibility-toggle hierarchy-eye" onClick={event=>{event.stopPropagation();viewerRef.current?.toggleHierarchyVisibility(node.id)}}>{node.visible?'Hide':'Show'}</button><span className="hierarchy-visibility">{node.visible?'Visible':'Hidden'}</span></div>)}</div></details><details className="material-editor"><summary>Material editor · {selectedMeshIds.length} selected</summary><div className="material-controls"><label>Base color<input aria-label="Material base color" type="color" value={materialColor} onChange={event=>setMaterialColor(event.target.value)}/></label><label>Roughness <b>{materialRoughness.toFixed(2)}</b><input aria-label="Material roughness" type="range" min="0" max="1" step="0.01" value={materialRoughness} onChange={event=>setMaterialRoughness(Number(event.target.value))}/></label><label>Metallic <b>{materialMetalness.toFixed(2)}</b><input aria-label="Material metallic" type="range" min="0" max="1" step="0.01" value={materialMetalness} onChange={event=>setMaterialMetalness(Number(event.target.value))}/></label><button className="toolbtn material-apply" disabled={!selectedMeshIds.length} onClick={applyMaterial}>Apply to selection</button><label className="toolbtn texture-upload">Import texture<input type="file" accept="image/png,image/jpeg,image/webp" onChange={applyTexture} hidden/></label>{materialMessage&&<small role="status">{materialMessage}</small>}</div></details></details>}</>}
       {dragging&&<div className="dropcover">Drop your 3D file to import</div>}
-      {!file&&!stats&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
+      {!file&&!stats&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>Best on mobile: GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
      </div>
      <div className="viewfoot"><span><span className="dot"/> REAL-TIME VIEWPORT</span><span>Orbit · Pan · Zoom</span></div>
     </section>
