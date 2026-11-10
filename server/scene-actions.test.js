@@ -27,6 +27,14 @@ test('rejects unsupported operations, invalid colors and unsafe transforms', () 
   ]), []);
 });
 
+test('accepts UUID-targeted edits and rejects malformed UUIDs', () => {
+  const id = '12345678-1234-1234-1234-123456789abc';
+  assert.deepEqual(normalizeSceneActions([
+    { type: 'set_material_color', objectId: id, color: '#abcdef' },
+    { type: 'delete_object', objectId: 'not-a-uuid' }
+  ]), [{ type: 'set_material_color', objectId: id, color: '#abcdef' }]);
+});
+
 test('caps action count and strips control characters in names', () => {
   const actions = Array.from({ length: 12 }, (_, i) => ({
     type: 'rename_object', objectName: 'Part', name: 'Part ' + i + '\u0000'
