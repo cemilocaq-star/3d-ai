@@ -3,7 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": {"dev": "vite --host 0.0.0.0", "build": "vite build", "preview": "vite preview --host 0.0.0.0"},
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "server": "node server/index.js",
+    "start": "node server/index.js"
+  },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
@@ -11,7 +17,8 @@
     "react": "latest",
     "react-dom": "latest",
     "three": "latest",
-    "lucide-react": "latest"
+    "lucide-react": "latest",
+    "express": "^5.1.0"
   },
   "devDependencies": {}
 }
