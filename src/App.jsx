@@ -91,8 +91,21 @@ export default function App(){
    });
    const data=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(data.error||'Nova API request failed (HTTP '+response.status+').');
-   if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('Nova API returned an empty response.');
-   setMessages(current=>[...current,{role:'assistant',text:data.reply.trim()}].slice(-80));
+   const actions=Array.isArray(data.actions)?data.actions:[];
+   if(actions.length){
+    const outcomes=viewerRef.current?.applyActions(actions)||actions.map(action=>({type:action.type,ok:false,reason:'No active 3D scene'}));
+    const applied=outcomes.filter(result=>result.ok).length;
+    const failed=outcomes.length-applied;
+    let confirmation=applied
+     ? 'Applied '+applied+' of '+actions.length+' requested scene change(s) in the viewport.'
+     : 'I could not apply the requested scene changes. Import a model first and check that the target object names match.';
+    if(failed&&applied)confirmation+=' '+failed+' change(s) could not be applied.';
+    if(applied===actions.length&&typeof data.reply==='string'&&data.reply.trim())confirmation+='\\n\\n'+data.reply.trim();
+    setMessages(current=>[...current,{role:'assistant',text:confirmation}].slice(-80));
+   }else{
+    if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('Nova API returned an empty response.');
+    setMessages(current=>[...current,{role:'assistant',text:data.reply.trim()}].slice(-80));
+   }
   }catch(error){
    setMessages(current=>[...current,{role:'assistant',text:error.message||'Nova could not connect to its API. Check the server and provider configuration.'}].slice(-80));
   }finally{
