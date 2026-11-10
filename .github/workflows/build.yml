@@ -14,4 +14,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: node --check server/index.js
+      - run: node --check server/rate-limit.js
+      - run: npm test
       - run: npm run build
