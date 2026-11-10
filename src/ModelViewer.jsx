@@ -2,6 +2,7 @@ import React,{forwardRef,useEffect,useImperativeHandle,useRef,useState} from 're
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
@@ -199,7 +200,12 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    state.current.grid.visible=!state.current.grid.visible;
    return state.current.grid.visible;
   },
-  applyActions(actions){return applySceneActions(state.current.current,actions);},
+  applyActions(actions){
+   const root=state.current.current;
+   const results=applySceneActions(root,actions);
+   if(root)onLoaded(measure(root));
+   return results;
+  },
   async exportGLB(){
    const root=state.current.current;
    if(!root)throw new Error('Import a model before exporting.');
@@ -214,7 +220,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    URL.revokeObjectURL(url);
    return true;
   }
- }),[]);
+ }),[onLoaded]);
 
  useEffect(()=>{
   if(!file||!state.current.load)return;
