@@ -43,3 +43,12 @@ test('caps action count and strips control characters in names', () => {
   assert.equal(result.length, 8);
   assert.equal(result[0].name, 'Part 0');
 });
+
+
+test('accepts bounded UUID arrays for bulk mesh edits and rejects malformed entries', () => {
+  const ids = ['12345678-1234-1234-1234-123456789abc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'];
+  assert.deepEqual(normalizeSceneActions([
+    { type: 'set_material_color', objectIds: [...ids, 'bad'], color: '#ABCDEF' },
+    { type: 'delete_object', objectIds: ['not-a-uuid'] }
+  ]), [{ type: 'set_material_color', objectIds: ids, color: '#abcdef' }]);
+});
