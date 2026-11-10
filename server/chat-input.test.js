@@ -45,7 +45,7 @@ test('trims old context to the configured character budget', () => {
     { role: 'user', content: 'x'.repeat(6000) },
     { role: 'assistant', content: 'y'.repeat(6000) },
     { role: 'user', content: 'z'.repeat(6000) },
-    { role: 'assistant', content: 'a'.repeat(5000) },
+    { role: 'assistant', content: 'a'.repeat(6000) },
     { role: 'user', content: 'latest' }
   ]);
   assert.ok(result.messages.reduce((sum, item) => sum + item.content.length, 0) <= MAX_CONTEXT_CHARACTERS);
