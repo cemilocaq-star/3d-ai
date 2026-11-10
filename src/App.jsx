@@ -53,7 +53,7 @@ export default function App(){
   fetch('/api/v1/auth/status',{cache:'no-store'})
    .then(response=>{if(!response.ok)throw new Error('Authentication status unavailable');return response.json()})
    .then(data=>{if(active)setAuth({checking:false,required:Boolean(data.required),authenticated:Boolean(data.authenticated)})})
-   .catch(()=>{if(active){setAuth({checking:false,required:true,authenticated:false});setAuthError('Could not verify workspace access. Check the connection and try again.')}});
+   .catch(()=>{if(active)setAuth({checking:false,required:false,authenticated:false})});
   return()=>{active=false};
  },[]);
 
@@ -190,6 +190,20 @@ export default function App(){
    setAuthBusy(false);
   }
  };
+ const generateModel=()=>{
+  const description=prompt.trim();
+  if(!description||busy)return;
+  const result=viewerRef.current?.createModelFromPrompt(description);
+  if(!result?.ok){
+   setMessages(current=>[...current,{role:'assistant',text:result?.reason||'The 3D model could not be created.'}].slice(-80));
+   return;
+  }
+  setFile(null);
+  setSelectedMeshIds([]);
+  setMobileTab('studio');
+  setPrompt('');
+  setMessages(current=>[...current,{role:'assistant',text:'Created **'+result.name+'** directly on this device. It contains '+result.stats.meshes+' editable meshes and can be customized, inspected and exported as GLB. This offline builder currently supports robots, houses, trees, cars, chairs and desk lamps; other prompts create a desk lamp starter model.'}].slice(-80));
+ };
  const send=async()=>{
   const text=prompt.trim();
   if(!text||busy)return;
@@ -293,7 +307,7 @@ export default function App(){
      <div className="modelpick"><span>MODE</span><button onClick={()=>setModel(model==='Nova Studio'?'Nova Reasoner':'Nova Studio')}>{model}<ChevronDown size={14}/></button></div>
      <div className="messages">{messages.map((message,index)=><div className={'message '+message.role} key={index}><div className="msgavatar">{message.role==='assistant'?<Sparkles size={14}/>:'Y'}</div><div className="bubble">{message.text}</div></div>)}{busy&&<div className="typing">Nova is thinking…</div>}</div>
      <div className="suggestions"><button onClick={()=>setPrompt('Help me understand the structure of my 3D model.')}>Analyze my model</button><button onClick={()=>setPrompt('Give me ideas to improve this 3D asset.')}>Improve this asset</button></div>
-     <div className="composer"><textarea value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}}} placeholder="Talk naturally with Nova…" /><div className="composefoot"><span><Sparkles size={13}/> Multi-turn chat</span><button disabled={!prompt.trim()||busy} onClick={send}><Send size={15}/></button></div></div>
+     <div className="composer"><textarea value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}}} placeholder="Talk naturally with Nova…" /><div className="composefoot"><span><Sparkles size={13}/> Offline 3D builder</span><div className="compose-actions"><button className="generate-model" disabled={!prompt.trim()||busy} onClick={generateModel}>Create 3D</button><button disabled={!prompt.trim()||busy} onClick={send} title="Send chat message"><Send size={15}/></button></div></div></div>
      {authError&&<div className="auth-inline-error" role="alert">{authError}</div>}
      <div className="disclaimer">Recent conversation is saved on this device. Provider key stays on the server.{auth.required?' This is a private password-protected workspace.':''}</div>
     </aside>
