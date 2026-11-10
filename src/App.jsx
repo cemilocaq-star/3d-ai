@@ -3,7 +3,8 @@ import {Box,Plus,Upload,MessageSquare,Settings,Send,Sparkles,PanelLeft,Download,
 import ModelViewer from './ModelViewer.jsx';
 const formats=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
 export default function App(){
- const viewerRef=useRef(null);\n const [file,setFile]=useState(null),[messages,setMessages]=useState([{role:'assistant',text:'Welcome to Nova 3D AI Studio. Upload a 3D asset to inspect it, or describe what you want to create. AI generation will connect when a provider key is configured.'}]),[prompt,setPrompt]=useState(''),[model,setModel]=useState('Nova Vision'),[busy,setBusy]=useState(false),[dragging,setDragging]=useState(false),[stats,setStats]=useState(null),[gridOn,setGridOn]=useState(true);
+ const viewerRef=useRef(null);
+ const [file,setFile]=useState(null),[messages,setMessages]=useState([{role:'assistant',text:'Welcome to Nova 3D AI Studio. Upload a 3D asset to inspect it, or describe what you want to create. AI generation will connect when a provider key is configured.'}]),[prompt,setPrompt]=useState(''),[model,setModel]=useState('Nova Vision'),[busy,setBusy]=useState(false),[dragging,setDragging]=useState(false),[stats,setStats]=useState(null),[gridOn,setGridOn]=useState(true);
  const supported=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
  const acceptFile=f=>{if(!f)return;const ext=f.name.split('.').pop().toLowerCase();if(!supported.includes(ext)){setMessages(m=>[...m,{role:'assistant',text:'Unsupported extension: .'+ext+'. Supported: '+supported.join(', ')}]);return;}setFile(f);setStats(null);setMessages(m=>[...m,{role:'assistant',text:'Imported '+f.name+'. The viewport will frame the model automatically.'}]);};
  const upload=e=>{acceptFile(e.target.files?.[0]);e.target.value='';};
