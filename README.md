@@ -59,6 +59,19 @@ The chat endpoint is limited to 20 requests per IP per minute and has a 45-secon
 - The browser applies only the allow-listed scene operations and reports how many actually succeeded.
 - Asset metadata is validated server-side before it is included in Nova's conversation context. Nova is told that structural statistics are not a visual inspection.
 
+## Mobile-first use
+
+The workspace is designed to work on phone-sized screens as well as desktop:
+
+- Use the bottom **Studio** and **Nova** tabs to switch between the 3D viewport and the full-screen chat.
+- Tap **Multi** in Studio before tapping meshes to select multiple parts by touch. Turn it off to return to single selection.
+- Use **GLB** where possible. A single-file GLB keeps geometry and embedded textures together and is the most reliable format for mobile import.
+- The import progress panel reports loading status. Models over 150 MB are rejected to reduce the risk of mobile browser memory or GPU failures.
+- A `.gltf` file is accepted when its buffers and images are embedded as data URIs. Files that reference separate `.bin` or image files are rejected with a prompt to export one `.glb`; multi-file bundles are not yet supported.
+- WebGL and hardware acceleration are required. Older phones may not have enough GPU memory for complex scenes; reduce polygon counts and texture dimensions before import.
+
+The viewport pauses rendering while its tab is hidden or the browser is in the background. The renderer also responds to viewport resizing and reports WebGL startup/context errors instead of silently leaving a blank canvas.
+
 ## Tests and build
 
 `npm test` runs unit tests plus an end-to-end API test that starts Nova against a local mock provider and checks health, multi-turn chat forwarding and input validation. `npm run build` creates the production frontend build. GitHub Actions checks server syntax, runs tests and builds the frontend.
