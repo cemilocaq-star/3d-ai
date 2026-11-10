@@ -177,8 +177,9 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   scene.background=new THREE.Color('#0b101a');
   const camera=new THREE.PerspectiveCamera(45,1,.01,10000);
   camera.position.set(4,3,5);
-  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  const mobileViewport=window.matchMedia('(max-width: 680px)').matches;
+  const renderer=new THREE.WebGLRenderer({antialias:!mobileViewport,alpha:false,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobileViewport?1.5:2));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   element.appendChild(renderer.domElement);
   const controls=new OrbitControls(camera,renderer.domElement);
@@ -288,11 +289,13 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   async applyTexture(file){
    const root=state.current.current;
    if(!root||!selectedMeshes.length||!file)return {ok:false,reason:'Select a mesh and an image first'};
+   if(file.size>8*1024*1024)return {ok:false,reason:'For mobile performance, use an image smaller than 8 MB'};
    const eligible=selectedMeshes.filter(mesh=>mesh.geometry?.attributes?.uv);
    if(!eligible.length)return {ok:false,reason:'Selected meshes have no UV coordinates'};
    const url=URL.createObjectURL(file);
    try{
     const texture=await new THREE.TextureLoader().loadAsync(url);
+    if((texture.image?.width||0)>4096||(texture.image?.height||0)>4096){texture.dispose();return {ok:false,reason:'Texture dimensions must be 4096 × 4096 pixels or smaller'}}
     texture.colorSpace=THREE.SRGBColorSpace;
     texture.needsUpdate=true;
     eligible.forEach(mesh=>{
