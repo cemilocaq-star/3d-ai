@@ -151,7 +151,7 @@ export default function App(){
     </section>
     <aside className="assistant">
      <div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>Conversational 3D copilot</small></div><button className="dots" onClick={newProject}>＋</button></div>
-     <div className="modelpick"><span>MODE</span><button onClick={()=>setModel(model==='Nova Vision'?'Nova Reasoner':'Nova Vision')}>{model}<ChevronDown size={14}/></button></div>
+     <div className="modelpick"><span>MODE</span><button onClick={()=>setModel(model==='Nova Studio'?'Nova Reasoner':'Nova Studio')}>{model}<ChevronDown size={14}/></button></div>
      <div className="messages">{messages.map((message,index)=><div className={'message '+message.role} key={index}><div className="msgavatar">{message.role==='assistant'?<Sparkles size={14}/>:'Y'}</div><div className="bubble">{message.text}</div></div>)}{busy&&<div className="typing">Nova is thinking…</div>}</div>
      <div className="suggestions"><button onClick={()=>setPrompt('Help me understand the structure of my 3D model.')}>Analyze my model</button><button onClick={()=>setPrompt('Give me ideas to improve this 3D asset.')}>Improve this asset</button></div>
      <div className="composer"><textarea value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}}} placeholder="Talk naturally with Nova…" /><div className="composefoot"><span><Sparkles size={13}/> Multi-turn chat</span><button disabled={!prompt.trim()||busy} onClick={send}><Send size={15}/></button></div></div>
