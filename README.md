@@ -18,7 +18,9 @@ The Vite development server proxies `/api` requests to the API on port 8787.
 3. Start the single production server: `npm start`.
 4. Open `http://localhost:8787` (or the configured `PORT`).
 
-When `dist/index.html` exists, Express serves the production frontend and the Nova API from the same origin. A separate static frontend host or reverse proxy is not required. Keep the server-side provider key private. Do not expose this single-user prototype publicly until app-level authentication and stronger abuse controls are added.
+When `dist/index.html` exists, Express serves the production frontend and the Nova API from the same origin. A separate static frontend host or reverse proxy is not required. Keep the server-side provider key private.
+
+For a private hosted instance, set `NOVA_APP_PASSWORD` before starting the server and set a separate random `NOVA_SESSION_SECRET` (recommended: at least 32 random characters). The app then shows a sign-in screen and protects chat requests with a signed, seven-day HttpOnly, SameSite=Lax cookie. Login attempts are rate-limited. Changing either secret invalidates previously issued sessions. Do not use a short or reused password. This is a single shared app password, not individual user accounts; the in-memory rate limiter is still per server process.
 
 ## Nova API v1
 
@@ -27,6 +29,7 @@ Nova exposes its own versioned REST API:
 - `GET /api/v1/health` — API availability, provider configuration and capabilities without exposing credentials.
 - `POST /api/v1/chat` — a bounded multi-turn conversation endpoint.
 - `GET /api/v1/openapi.json` — machine-readable OpenAPI 3.1 specification.
+- `GET /api/v1/auth/status`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout` — optional shared-password session flow when `NOVA_APP_PASSWORD` is configured.
 - Legacy `/api/health` and `/api/chat` paths remain available for compatibility.
 
 Example request:
@@ -55,7 +58,7 @@ The API accepts up to 16 recent user/assistant messages, requires the final mess
 
 **Important distinction:** Nova now has its own API interface, assistant instructions and conversation flow, but it is not a newly trained foundation model. Natural-language responses still require a configured external OpenAI-compatible model provider. Without provider credentials, the API reports that it is not configured and does not fake responses.
 
-The chat endpoint is limited to 20 requests per IP per minute and has a 45-second provider timeout. The in-memory rate limiter is for a single server process; multi-instance deployments need a shared store and appropriate API authentication.
+The chat endpoint is limited to 20 authenticated requests per IP per minute and has a 45-second provider timeout. Login attempts are limited to 5 per IP per 15 minutes. The in-memory rate limiter is for a single server process; multi-instance deployments need a shared store. The optional shared password is a basic access gate, not a substitute for individual user accounts, billing, or a production identity system.
 
 ## 3D workspace
 
