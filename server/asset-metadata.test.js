@@ -41,17 +41,17 @@ test('rejects unsupported formats and invalid geometry counts', () => {
 
 test('removes control characters and truncates filenames', () => {
   const result = normalizeAssetMetadata({
-    filename: 'a\\u0000b'.padEnd(140, 'x'), format: 'obj'
+    filename: 'a' + String.fromCharCode(0) + 'b'.padEnd(140, 'x'), format: 'obj'
   });
   assert.equal(result.filename.length, 120);
-  assert.equal(result.filename.includes('\\u0000'), false);
+  assert.equal(result.filename.includes(String.fromCharCode(0)), false);
 });
 
 test('sanitizes mesh and material names and caps inspection detail', () => {
   const details = Array.from({ length: 25 }, (_, i) => ({
-    name: 'Part ' + i + '\\u0000', vertices: 20, triangles: 10,
+    name: 'Part ' + i + String.fromCharCode(0), vertices: 20, triangles: 10,
     dimensions: { x: -1, y: 2, z: 3 },
-    materials: ['Paint\\u0001', 'Metal', 'Glass', 'Rubber', 'Extra'],
+    materials: ['Paint' + String.fromCharCode(1), 'Metal', 'Glass', 'Rubber', 'Extra'],
     materialColors: ['#FFFFFF', 'not-a-color']
   }));
   const result = normalizeAssetMetadata({
