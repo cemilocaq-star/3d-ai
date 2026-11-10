@@ -45,7 +45,7 @@ before(async () => {
     env: {
       ...process.env,
       PORT: String(apiPort),
-      NOVA_PROVIDER_API_KEY: 'integration-test-key',
+      NOVA_PROVIDER_API_KEY: '',
       NOVA_PROVIDER_BASE_URL: 'http://127.0.0.1:' + providerPort + '/v1',
       NOVA_MODEL: 'nova-test-model',
       NOVA_APP_PASSWORD: 'integration-test-password',
@@ -99,8 +99,8 @@ test('Nova health endpoint reports its own API version and provider readiness wi
   assert.equal(data.name, 'Nova API');
   assert.equal(data.apiVersion, 'v1');
   assert.equal(data.configured, true);
+  assert.equal(data.provider, 'Local OpenAI-compatible');
   assert.equal(data.model, 'nova-test-model');
-  assert.equal(JSON.stringify(data).includes('integration-test-key'), false);
   assert.equal(JSON.stringify(data).includes('integration-test-password'), false);
   assert.equal(JSON.stringify(data).includes('integration-test-session-secret'), false);
 });
@@ -176,6 +176,7 @@ test('Nova chat endpoint carries a multi-turn conversation to its configured pro
   assert.equal(data.api, 'Nova API v1');
   assert.equal(data.model, 'nova-test-model');
   assert.equal(providerRequest.url, '/v1/chat/completions');
+  assert.equal(providerRequest.headers.authorization, undefined);
   assert.equal(providerRequest.body.messages.at(-1).content, 'Can we plan a 3D scene?');
   assert.equal(providerRequest.body.messages.filter(message => message.role === 'user').length, 2);
   assert.match(providerRequest.body.messages[0].content, /You are Nova/);
