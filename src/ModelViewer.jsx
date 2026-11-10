@@ -322,6 +322,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadPr
    controls.dispose();
    const loaded=state.current.current;
    if(loaded){scene.remove(loaded);disposeObject(loaded)}
+   disposeObject(scene);
    renderer.dispose();
    element.removeChild(renderer.domElement);
    state.current={};
@@ -402,6 +403,13 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadPr
    const root=state.current.current;
    if(!root||!Array.isArray(meshIds))return false;
    const ids=new Set(meshIds.filter(id=>typeof id==='string'));
+   if(!ids.size){
+    selectedMesh=null;
+    selectedMeshes=[];
+    selectionBox.box.makeEmpty();
+    selectionBox.visible=false;
+    return true;
+   }
    let first=null;
    root.traverse(node=>{if(node.isMesh&&ids.has(node.uuid)&&!first)first=node});
    if(!first)return false;
@@ -537,7 +545,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadPr
      if(references.length){
       throw new Error('This .gltf file uses separate model or texture files. Export the asset as a single .glb file and import that on mobile.');
      }
-     report(file.size,file.size,'Parsing glTF scene');
+     report(0,0,'Parsing glTF scene');
      new GLTFLoader(manager).parse(source,'',gltf=>done(gltf.scene),fail);
     }else if(extension==='glb'){
      new GLTFLoader(manager).load(url,gltf=>done(gltf.scene),onProgress,fail);
