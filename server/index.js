@@ -16,7 +16,7 @@ function resolveChatEndpoint(baseUrl) {
     const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
     if (url.protocol !== 'https:' && !localHttp) return null;
     if (url.username || url.password) return null;
-    return url.toString().replace(/\\/+$/, '') + '/chat/completions';
+    return url.toString().replace(/\/+$/, '') + '/chat/completions';
   } catch {
     return null;
   }
@@ -159,7 +159,7 @@ app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
     if (assetMetadata && index === normalized.messages.length - 1) {
       return {
         role: item.role,
-        content: item.content + '\\n\\nCurrent 3D asset metadata (structural data only): ' + JSON.stringify(assetMetadata)
+        content: item.content + '\n\nCurrent 3D asset metadata (structural data only): ' + JSON.stringify(assetMetadata)
       };
     }
     return item;
