@@ -142,7 +142,7 @@ app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
   }
 
   const mode = req.body?.mode || req.body?.model;
-  const assistantMode = mode === 'Nova Reasoner' ? 'reasoning-focused' : 'creative and visual-design-focused';
+  const assistantMode = mode === 'Nova Reasoner' ? 'reasoning-focused' : 'creative 3D-studio-focused';
   const assetMetadata = normalizeAssetMetadata(req.body?.asset);
   const systemPrompt = [
     'You are Nova, the conversational AI assistant in Nova 3D AI Studio.',
