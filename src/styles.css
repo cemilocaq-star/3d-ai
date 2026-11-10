@@ -88,3 +88,8 @@ button,.toolbtn{min-height:36px}
 .auth-error,.auth-inline-error{padding:10px;border:1px solid #73454b;border-radius:7px;background:#321d24;color:#ffd9dc;font-size:12px;line-height:1.5}
 .auth-inline-error{margin:8px 13px 0}
 @media(max-width:480px){.auth-screen{padding:16px}.auth-card{padding:24px 20px}.auth-card h1{font-size:22px}}
+
+.compose-actions{display:flex;align-items:center;gap:8px}
+.generate-model{min-height:36px;padding:0 14px;border:1px solid #4b8b82;border-radius:8px;background:#174c48;color:#e6fffa;font:600 12px system-ui,sans-serif;white-space:nowrap}
+.generate-model:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:680px){.compose-actions{gap:6px}.generate-model{min-height:40px;padding:0 12px}}
