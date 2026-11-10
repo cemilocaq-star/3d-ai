@@ -93,6 +93,7 @@ function measure(root){
  root.traverse(node=>{
   if(!node.isMesh)return;
   meshes++;
+  if(!node.name)node.name='Mesh '+meshes;
   const geometry=node.geometry;
   const vertexCount=geometry?.attributes?.position?.count||0;
   const triangleCount=Math.floor((geometry?.index?.count||vertexCount)/3);
