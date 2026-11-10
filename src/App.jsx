@@ -167,7 +167,7 @@ export default function App(){
      applied?'Applied '+applied+' of '+actions.length+' requested scene change(s) in the viewport.':'No requested scene changes could be applied. Check the selected object and target names.',
      failed?failed+' change(s) could not be applied.':'',
      typeof data.reply==='string'?data.reply.trim():''
-    ].filter(Boolean).join('\\n\\n');
+    ].filter(Boolean).join('\n\n');
     setMessages(current=>[...current,{role:'assistant',text:summary}].slice(-80));
    }else{
     if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('Nova API returned an empty response.');
