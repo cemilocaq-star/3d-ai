@@ -83,7 +83,16 @@ function applySceneActions(root,actions){
    const list=Array.isArray(target.material)?target.material:[target.material];
    const editable=list.filter(material=>material?.color?.set);
    if(!editable.length){results.push({type:action.type,ok:false,reason:'Object has no editable color material'});continue}
-   editable.forEach(material=>{material.color.set(action.color);material.needsUpdate=true});
+   const previous=list;
+   const next=list.map(material=>{
+    if(!material?.color?.set)return material;
+    const copy=material.clone();
+    copy.color.set(action.color);
+    copy.needsUpdate=true;
+    return copy;
+   });
+   target.material=Array.isArray(target.material)?next:next[0];
+   disposeReplacedMaterials(previous,root);
    results.push({type:action.type,ok:true,name:target.name});
   }else if(action.type==='set_material_properties'){
    const list=Array.isArray(target.material)?target.material:[target.material];
@@ -541,7 +550,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadPr
      const references=[
       ...(Array.isArray(document.buffers)?document.buffers:[]),
       ...(Array.isArray(document.images)?document.images:[])
-     ].map(item=>item?.uri).filter(uri=>typeof uri==='string'&&!uri.startsWith('data:')&&!uri.startsWith('blob:')&&!/^https?:\/\//i.test(uri)&&!uri.startsWith('//'));
+     ].map(item=>item?.uri).filter(uri=>typeof uri==='string'&&!uri.startsWith('data:'));
      if(references.length){
       throw new Error('This .gltf file uses separate model or texture files. Export the asset as a single .glb file and import that on mobile.');
      }
