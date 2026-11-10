@@ -1,6 +1,6 @@
 # Nova 3D AI Studio
 
-A browser-based 3D asset workspace with an interactive Three.js viewport and an AI-assistant UI shell.
+A browser-based 3D asset workspace built with React, Vite and Three.js.
 
 ## Run locally
 ```bash
@@ -8,10 +8,17 @@ npm install
 npm run dev
 ```
 
-## Current capabilities
-- Import and inspect GLB/GLTF, FBX, OBJ, STL, PLY, 3MF, Collada/DAE and USDZ files.
-- Orbit, pan, zoom, auto-frame and grid viewport.
-- Responsive studio layout and assistant chat shell.
+## Current implementation
+- Interactive Three.js viewport with orbit, pan, zoom, automatic framing and grid visibility control.
+- Import by file picker for GLB/GLTF, FBX, OBJ, STL, PLY, 3MF, Collada/DAE and USDZ.
+- Drag-and-drop import for the same listed formats.
+- Basic mesh, vertex and triangle statistics.
+- Export the currently loaded scene as binary GLB.
+- Responsive studio layout and an AI-assistant interface shell.
+- GitHub Actions workflow configured to run `npm install` and `npm run build`.
 
-## Important limitations
-The AI endpoint is not yet implemented. Model switching is currently UI-only. Some formats need companion files or external dependencies (for example OBJ materials/textures); multi-file asset packaging is not implemented yet. The app has not yet been built or browser-tested in this repository.
+## Known limitations
+- AI provider integration and actual text-to-3D generation/editing are not implemented.
+- OBJ companion MTL/textures and other multi-file asset packages are not handled.
+- Only the formats listed above are wired; this is not universal 3D-format support.
+- CI/build, browser and device validation must pass before calling this production-ready.
