@@ -32,21 +32,24 @@ export function normalizeSceneActions(input) {
 
     if (item.type === 'rename_object') {
       const objectName = safeName(item.objectName);
+      const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
       const name = safeName(item.name);
-      if (objectName && name) actions.push({ type: item.type, objectName, name });
+      if ((objectName || objectId) && name) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), name });
     } else if (item.type === 'set_material_color') {
       const objectName = safeName(item.objectName);
+      const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
       const nextColor = color(item.color);
-      if (objectName && nextColor) actions.push({ type: item.type, objectName, color: nextColor });
+      if ((objectName || objectId) && nextColor) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), color: nextColor });
     } else if (item.type === 'set_transform') {
       const objectName = safeName(item.objectName);
+      const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
       const position = item.position === undefined ? null : vector(item.position);
       const rotation = item.rotation === undefined ? null : vector(item.rotation, { min: -3600, max: 3600 });
       const scale = item.scale === undefined ? null : vector(item.scale, { min: 0.01, max: 100, positive: true });
       const suppliedFields = ['position', 'rotation', 'scale'].filter(key => item[key] !== undefined);
       const validFields = suppliedFields.every(key => ({ position, rotation, scale })[key] !== null);
-      if (objectName && suppliedFields.length > 0 && validFields) {
-        actions.push({ type: item.type, objectName, ...(position && { position }), ...(rotation && { rotation }), ...(scale && { scale }) });
+      if ((objectName || objectId) && suppliedFields.length > 0 && validFields) {
+        actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(position && { position }), ...(rotation && { rotation }), ...(scale && { scale }) });
       }
     } else if (item.type === 'add_primitive') {
       const name = safeName(item.name);
@@ -59,7 +62,8 @@ export function normalizeSceneActions(input) {
       }
     } else if (item.type === 'delete_object') {
       const objectName = safeName(item.objectName);
-      if (objectName) actions.push({ type: item.type, objectName });
+      const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
+      if (objectName || objectId) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }) });
     }
   }
 
