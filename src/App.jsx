@@ -1,5 +1,5 @@
 import React,{Suspense,lazy,useCallback,useEffect,useRef,useState} from 'react';
-import {Box,Plus,Upload,MessageSquare,Settings,Send,Sparkles,PanelLeft,Download,RotateCcw,Layers,ChevronDown,FileBox} from 'lucide-react';
+import {Box,Plus,Upload,MessageSquare,Settings,Send,Sparkles,PanelLeft,Download,RotateCcw,Layers,ChevronDown,FileBox,LockKeyhole,LogOut} from 'lucide-react';
 const ModelViewer=lazy(()=>import('./ModelViewer.jsx'));
 
 const formats=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
@@ -37,14 +37,24 @@ export default function App(){
  const [gridOn,setGridOn]=useState(true);
  const [multiSelectEnabled,setMultiSelectEnabled]=useState(false);
  const [apiStatus,setApiStatus]=useState('checking');
+ const [auth,setAuth]=useState({checking:true,required:false,authenticated:false});
+ const [authPassword,setAuthPassword]=useState('');
+ const [authError,setAuthError]=useState('');
+ const [authBusy,setAuthBusy]=useState(false);
  const [loadProgress,setLoadProgress]=useState(null);
  const [mobileTab,setMobileTab]=useState('studio');
 
  useEffect(()=>{
+  let active=true;
   fetch('/api/v1/health')
    .then(response=>{if(!response.ok)throw new Error('API unavailable');return response.json()})
-   .then(data=>setApiStatus(data.configured?'ready':'unconfigured'))
-   .catch(()=>setApiStatus('offline'));
+   .then(data=>{if(active)setApiStatus(data.configured?'ready':'unconfigured')})
+   .catch(()=>{if(active)setApiStatus('offline')});
+  fetch('/api/v1/auth/status',{cache:'no-store'})
+   .then(response=>{if(!response.ok)throw new Error('Authentication status unavailable');return response.json()})
+   .then(data=>{if(active)setAuth({checking:false,required:Boolean(data.required),authenticated:Boolean(data.authenticated)})})
+   .catch(()=>{if(active)setAuth({checking:false,required:false,authenticated:false})});
+  return()=>{active=false};
  },[]);
 
  useEffect(()=>{
@@ -144,6 +154,41 @@ export default function App(){
   setPrompt('');
   setMessages([welcomeMessage]);
  };
+ const login=async event=>{
+  event.preventDefault();
+  if(authBusy)return;
+  setAuthBusy(true);
+  setAuthError('');
+  try{
+   const response=await fetch('/api/v1/auth/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({password:authPassword})
+   });
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||'Login failed. Check the app password.');
+   setAuth({checking:false,required:true,authenticated:true});
+   setAuthPassword('');
+  }catch(error){
+   setAuthError(error.message||'Could not sign in. Check the server connection.');
+  }finally{
+   setAuthBusy(false);
+  }
+ };
+ const logout=async()=>{
+  if(authBusy)return;
+  setAuthBusy(true);
+  setAuthError('');
+  try{
+   const response=await fetch('/api/v1/auth/logout',{method:'POST'});
+   if(!response.ok)throw new Error('Could not sign out. Please refresh the page.');
+   setAuth(current=>({...current,authenticated:false}));
+  }catch(error){
+   setAuthError(error.message||'Could not sign out.');
+  }finally{
+   setAuthBusy(false);
+  }
+ };
  const send=async()=>{
   const text=prompt.trim();
   if(!text||busy)return;
@@ -189,6 +234,21 @@ export default function App(){
   }
  };
 
+ if(auth.checking||(auth.required&&!auth.authenticated)){
+  return <main className="auth-screen">
+   <form className="auth-card" onSubmit={login}>
+    <div className="brandmark"><LockKeyhole size={22}/></div>
+    <span className="auth-eyebrow">NOVA 3D AI STUDIO</span>
+    <h1>Private workspace</h1>
+    <p>This Nova instance is password-protected. Enter the app password to continue.</p>
+    <label htmlFor="nova-app-password">App password</label>
+    <input id="nova-app-password" type="password" autoComplete="current-password" value={authPassword} onChange={event=>setAuthPassword(event.target.value)} placeholder="Enter app password" required disabled={authBusy}/>
+    {authError&&<div className="auth-error" role="alert">{authError}</div>}
+    <button className="auth-submit" type="submit" disabled={authBusy||!authPassword.trim()}>{authBusy?'Signing in…':'Sign in'}</button>
+    <small>Your password is sent only to this server. The session cookie is HttpOnly.</small>
+   </form>
+  </main>;
+ }
  return <div className={"shell mobile-"+mobileTab}>
   <aside className="sidebar">
    <div className="brand"><div className="brandmark"><Box size={21}/></div><div><b>NOVA</b><small>3D AI STUDIO</small></div></div>
@@ -228,12 +288,13 @@ export default function App(){
      <div className="viewfoot"><span><span className="dot"/> REAL-TIME VIEWPORT</span><span>Orbit · Pan · Zoom</span></div>
     </section>
     <aside className="assistant">
-     <div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>3D copilot · {apiStatus==='ready'?'API ready':apiStatus==='unconfigured'?'provider key needed':apiStatus==='offline'?'API offline':'checking API'}</small></div><button className="dots" onClick={newProject}>＋</button></div>
+     <div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>3D copilot · {apiStatus==='ready'?'API ready':apiStatus==='unconfigured'?'provider key needed':apiStatus==='offline'?'API offline':'checking API'}</small></div>{auth.required&&<button className="dots" onClick={logout} disabled={authBusy} title="Sign out" aria-label="Sign out"><LogOut size={17}/></button>}<button className="dots" onClick={newProject} title="New project" aria-label="New project">＋</button></div>
      <div className="modelpick"><span>MODE</span><button onClick={()=>setModel(model==='Nova Studio'?'Nova Reasoner':'Nova Studio')}>{model}<ChevronDown size={14}/></button></div>
      <div className="messages">{messages.map((message,index)=><div className={'message '+message.role} key={index}><div className="msgavatar">{message.role==='assistant'?<Sparkles size={14}/>:'Y'}</div><div className="bubble">{message.text}</div></div>)}{busy&&<div className="typing">Nova is thinking…</div>}</div>
      <div className="suggestions"><button onClick={()=>setPrompt('Help me understand the structure of my 3D model.')}>Analyze my model</button><button onClick={()=>setPrompt('Give me ideas to improve this 3D asset.')}>Improve this asset</button></div>
      <div className="composer"><textarea value={prompt} onChange={event=>setPrompt(event.target.value)} onKeyDown={event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}}} placeholder="Talk naturally with Nova…" /><div className="composefoot"><span><Sparkles size={13}/> Multi-turn chat</span><button disabled={!prompt.trim()||busy} onClick={send}><Send size={15}/></button></div></div>
-     <div className="disclaimer">Recent conversation is saved on this device. Provider key stays on the server.</div>
+     {authError&&<div className="auth-inline-error" role="alert">{authError}</div>}
+     <div className="disclaimer">Recent conversation is saved on this device. Provider key stays on the server.{auth.required?' This is a private password-protected workspace.':''}</div>
     </aside>
    </div>
   </main>
