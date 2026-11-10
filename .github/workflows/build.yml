@@ -15,5 +15,6 @@ jobs:
       - run: npm install
       - run: node --check server/index.js
       - run: node --check server/rate-limit.js
+      - run: node --check server/asset-metadata.js
       - run: npm test
       - run: npm run build
