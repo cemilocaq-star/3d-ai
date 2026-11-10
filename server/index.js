@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,9 +29,72 @@ function resolveChatEndpoint(baseUrl) {
 
 const providerEndpoint = resolveChatEndpoint(providerBaseUrl);
 const configured = Boolean(providerApiKey && providerEndpoint);
+const appPassword = process.env.NOVA_APP_PASSWORD || '';
+const sessionSecret = process.env.NOVA_SESSION_SECRET || appPassword;
+const sessionLifetimeSeconds = 7 * 24 * 60 * 60;
+const loginRateLimit = createRateLimiter({ windowMs: 15 * 60_000, max: 5 });
+
+function passwordMatches(candidate) {
+  const supplied = createHash('sha256').update(String(candidate || '')).digest();
+  const expected = createHash('sha256').update(appPassword).digest();
+  return timingSafeEqual(supplied, expected);
+}
+
+function createSessionToken(expiresAt) {
+  const payload = String(expiresAt);
+  const signature = createHmac('sha256', sessionSecret).update(payload).digest('base64url');
+  return payload + '.' + signature;
+}
+
+function hasValidSession(req) {
+  if (!appPassword) return true;
+  const cookie = String(req.headers.cookie || '').split(';').map(part => part.trim()).find(part => part.startsWith('nova_session='));
+  if (!cookie) return false;
+  const token = cookie.slice('nova_session='.length);
+  const [expiresText, signature, extra] = token.split('.');
+  if (!expiresText || !signature || extra !== undefined) return false;
+  const expiresAt = Number(expiresText);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return false;
+  const expected = createHmac('sha256', sessionSecret).update(expiresText).digest('base64url');
+  const suppliedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  return suppliedBuffer.length === expectedBuffer.length && timingSafeEqual(suppliedBuffer, expectedBuffer);
+}
+
+function writeSessionCookie(req, res, token, maxAge = sessionLifetimeSeconds) {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const secure = req.secure || forwardedProto === 'https';
+  res.setHeader('Set-Cookie', 'nova_session=' + token + '; HttpOnly; SameSite=Lax; Path=/; Max-Age=' + maxAge + (secure ? '; Secure' : ''));
+}
+
+function requireAppAuth(req, res, next) {
+  if (hasValidSession(req)) return next();
+  return res.status(401).json({ error: 'This Nova instance is password-protected. Log in to continue.' });
+}
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '64kb' }));
+
+app.get('/api/v1/auth/status', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ required: Boolean(appPassword), authenticated: hasValidSession(req) });
+});
+
+app.post('/api/v1/auth/login', loginRateLimit, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!appPassword) return res.status(409).json({ error: 'App password protection is not enabled on this server.' });
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!password || !passwordMatches(password)) return res.status(401).json({ error: 'The app password is incorrect.' });
+  const expiresAt = Math.floor(Date.now() / 1000) + sessionLifetimeSeconds;
+  writeSessionCookie(req, res, createSessionToken(expiresAt));
+  return res.json({ ok: true, expiresAt });
+});
+
+app.post('/api/v1/auth/logout', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  writeSessionCookie(req, res, '', 0);
+  return res.json({ ok: true });
+});
 
 function healthResponse(_req, res) {
   res.json({
@@ -127,7 +191,7 @@ app.get('/api/v1/openapi.json', (_req, res) => {
 
 const rateLimit = createRateLimiter({ windowMs: 60_000, max: 20 });
 
-app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
+app.post(['/api/v1/chat', '/api/chat'], rateLimit, requireAppAuth, async (req, res) => {
   const legacyMessage = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   const rawMessages = Array.isArray(req.body?.messages)
     ? req.body.messages
