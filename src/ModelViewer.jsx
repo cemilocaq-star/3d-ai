@@ -9,14 +9,182 @@ import {PLYLoader} from 'three/addons/loaders/PLYLoader.js';
 import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {USDZLoader} from 'three/addons/loaders/USDZLoader.js';
 import {ThreeMFLoader} from 'three/addons/loaders/3MFLoader.js';
-import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
-function disposeObject(root){root?.traverse?.(node=>{if(node.geometry)node.geometry.dispose();const materials=Array.isArray(node.material)?node.material:[node.material];materials.filter(Boolean).forEach(material=>{Object.values(material).forEach(v=>{if(v?.isTexture)v.dispose()});material.dispose()})})}
-function measure(root){let meshes=0,vertices=0,triangles=0;root.traverse(node=>{if(!node.isMesh)return;meshes++;const g=node.geometry;vertices+=g?.attributes?.position?.count||0;triangles+=(g?.index?.count||g?.attributes?.position?.count||0)/3});return{meshes,vertices,triangles:Math.floor(triangles)}}
+
+function disposeObject(root){
+ root?.traverse?.(node=>{
+  if(node.geometry)node.geometry.dispose();
+  const materials=Array.isArray(node.material)?node.material:[node.material];
+  materials.filter(Boolean).forEach(material=>{
+   Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose()});
+   material.dispose();
+  });
+ });
+}
+function rounded(value){return Number.isFinite(value)?Math.round(value*1000)/1000:null}
+function getDimensions(object){
+ const bounds=new THREE.Box3().setFromObject(object);
+ if(bounds.isEmpty())return null;
+ const size=bounds.getSize(new THREE.Vector3());
+ return{x:rounded(size.x),y:rounded(size.y),z:rounded(size.z)};
+}
+function measure(root){
+ root.updateMatrixWorld(true);
+ let meshes=0,vertices=0,triangles=0;
+ const materials=new Set(),textures=new Set(),meshDetails=[];
+ root.traverse(node=>{
+  if(!node.isMesh)return;
+  meshes++;
+  const geometry=node.geometry;
+  const vertexCount=geometry?.attributes?.position?.count||0;
+  const triangleCount=Math.floor((geometry?.index?.count||vertexCount)/3);
+  vertices+=vertexCount;
+  triangles+=triangleCount;
+  const meshMaterials=Array.isArray(node.material)?node.material:[node.material];
+  const materialNames=[];
+  for(const material of meshMaterials.filter(Boolean)){
+   materials.add(material);
+   if(material.name)materialNames.push(material.name.slice(0,80));
+   for(const value of Object.values(material))if(value?.isTexture)textures.add(value);
+  }
+  if(meshDetails.length<20){
+   meshDetails.push({
+    name:(node.name||'Mesh '+meshes).slice(0,80),
+    vertices:vertexCount,
+    triangles:triangleCount,
+    dimensions:getDimensions(node),
+    materials:[...new Set(materialNames)].slice(0,4)
+   });
+  }
+ });
+ return{
+  meshes,vertices,triangles,materials:materials.size,textures:textures.size,
+  dimensions:getDimensions(root),meshDetails
+ };
+}
+
 const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
  const host=useRef(null),state=useRef({}),[error,setError]=useState('');
- useEffect(()=>{const el=host.current;if(!el)return;const scene=new THREE.Scene();scene.background=new THREE.Color('#0b101a');const camera=new THREE.PerspectiveCamera(45,1,.01,10000);camera.position.set(4,3,5);const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;el.appendChild(renderer.domElement);const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;scene.add(new THREE.HemisphereLight(0xffffff,0x354052,2));const light=new THREE.DirectionalLight(0xffffff,2.5);light.position.set(4,7,5);scene.add(light);let current=null,frame;const grid=new THREE.GridHelper(12,24,0x344158,0x202b3b);scene.add(grid);const resize=()=>{const w=el.clientWidth||1,h=el.clientHeight||1;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)};const ro=new ResizeObserver(resize);ro.observe(el);resize();const animate=()=>{frame=requestAnimationFrame(animate);controls.update();renderer.render(scene,camera)};animate();state.current={grid,current:null,load:object=>{if(current){scene.remove(current);disposeObject(current)}current=object;state.current.current=object;scene.add(object);const box=new THREE.Box3().setFromObject(object);if(!box.isEmpty()){const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3()),max=Math.max(size.x,size.y,size.z)||1;object.position.sub(center);camera.position.set(max*1.8,max*1.35,max*1.8);camera.near=Math.max(max/1000,.001);camera.far=max*100;camera.updateProjectionMatrix();controls.target.set(0,0,0);controls.update()}onLoaded(measure(object))}};return()=>{cancelAnimationFrame(frame);ro.disconnect();controls.dispose();if(current)disposeObject(current);renderer.dispose();el.removeChild(renderer.domElement);state.current={}}},[onLoaded]);
- useImperativeHandle(ref,()=>({toggleGrid(){if(!state.current.grid)return false;state.current.grid.visible=!state.current.grid.visible;return state.current.grid.visible;},async exportGLB(){const root=state.current.current;if(!root)throw new Error('Import a model before exporting.');const exporter=new GLTFExporter();const result=await new Promise((resolve,reject)=>exporter.parse(root,resolve,reject,{binary:true}));const blob=new Blob([result],{type:'model/gltf-binary'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nova-export.glb';a.click();URL.revokeObjectURL(url);return true;}}),[]);
- useEffect(()=>{if(!file||!state.current.load)return;const url=URL.createObjectURL(file);let cancelled=false;setError('');const ext=file.name.split('.').pop().toLowerCase();const done=o=>{if(cancelled)disposeObject(o);else state.current.load(o)};const fail=()=>{if(!cancelled)setError('Could not load this file. Check that the asset is valid and self-contained.')};try{if(ext==='glb'||ext==='gltf')new GLTFLoader().load(url,g=>done(g.scene),undefined,fail);else if(ext==='fbx')new FBXLoader().load(url,done,undefined,fail);else if(ext==='obj')new OBJLoader().load(url,done,undefined,fail);else if(ext==='stl'||ext==='ply'){const loader=ext==='stl'?new STLLoader():new PLYLoader();loader.load(url,g=>{if(ext==='ply'&&g.hasAttribute('color'))done(new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true})));else{if(!g.getAttribute('normal'))g.computeVertexNormals();done(new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x9aaec8,metalness:.25,roughness:.55}))) }},undefined,fail)}else if(ext==='dae')new ColladaLoader().load(url,g=>done(g.scene),undefined,fail);else if(ext==='usdz')new USDZLoader().load(url,done,undefined,fail);else if(ext==='3mf')new ThreeMFLoader().load(url,done,undefined,fail);else fail()}catch{fail()}return()=>{cancelled=true;URL.revokeObjectURL(url)}},[file]);
- return <div ref={host} style={{position:'absolute',inset:0}}>{error&&<div className="loaderror">{error}</div>}</div>
+ useEffect(()=>{
+  const element=host.current;
+  if(!element)return;
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color('#0b101a');
+  const camera=new THREE.PerspectiveCamera(45,1,.01,10000);
+  camera.position.set(4,3,5);
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  element.appendChild(renderer.domElement);
+  const controls=new OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true;
+  scene.add(new THREE.HemisphereLight(0xffffff,0x354052,2));
+  const light=new THREE.DirectionalLight(0xffffff,2.5);
+  light.position.set(4,7,5);
+  scene.add(light);
+  let current=null,frame;
+  const grid=new THREE.GridHelper(12,24,0x344158,0x202b3b);
+  scene.add(grid);
+  const resize=()=>{
+   const width=element.clientWidth||1,height=element.clientHeight||1;
+   camera.aspect=width/height;
+   camera.updateProjectionMatrix();
+   renderer.setSize(width,height);
+  };
+  const observer=new ResizeObserver(resize);
+  observer.observe(element);
+  resize();
+  const animate=()=>{
+   frame=requestAnimationFrame(animate);
+   controls.update();
+   renderer.render(scene,camera);
+  };
+  animate();
+  state.current={
+   grid,current:null,
+   load:object=>{
+    if(current){scene.remove(current);disposeObject(current)}
+    current=object;
+    state.current.current=object;
+    scene.add(object);
+    const bounds=new THREE.Box3().setFromObject(object);
+    if(!bounds.isEmpty()){
+     const size=bounds.getSize(new THREE.Vector3());
+     const center=bounds.getCenter(new THREE.Vector3());
+     const max=Math.max(size.x,size.y,size.z)||1;
+     object.position.sub(center);
+     camera.position.set(max*1.8,max*1.35,max*1.8);
+     camera.near=Math.max(max/1000,.001);
+     camera.far=max*100;
+     camera.updateProjectionMatrix();
+     controls.target.set(0,0,0);
+     controls.update();
+    }
+    onLoaded(measure(object));
+   }
+  };
+  return()=>{
+   cancelAnimationFrame(frame);
+   observer.disconnect();
+   controls.dispose();
+   if(current)disposeObject(current);
+   renderer.dispose();
+   element.removeChild(renderer.domElement);
+   state.current={};
+  };
+ },[onLoaded]);
+
+ useImperativeHandle(ref,()=>({
+  toggleGrid(){
+   if(!state.current.grid)return false;
+   state.current.grid.visible=!state.current.grid.visible;
+   return state.current.grid.visible;
+  },
+  async exportGLB(){
+   const root=state.current.current;
+   if(!root)throw new Error('Import a model before exporting.');
+   const exporter=new GLTFExporter();
+   const result=await new Promise((resolve,reject)=>exporter.parse(root,resolve,reject,{binary:true}));
+   const blob=new Blob([result],{type:'model/gltf-binary'});
+   const url=URL.createObjectURL(blob);
+   const anchor=document.createElement('a');
+   anchor.href=url;
+   anchor.download='nova-export.glb';
+   anchor.click();
+   URL.revokeObjectURL(url);
+   return true;
+  }
+ }),[]);
+
+ useEffect(()=>{
+  if(!file||!state.current.load)return;
+  const url=URL.createObjectURL(file);
+  let cancelled=false;
+  setError('');
+  const extension=file.name.split('.').pop().toLowerCase();
+  const done=object=>{if(cancelled)disposeObject(object);else state.current.load(object)};
+  const fail=()=>{if(!cancelled)setError('Could not load this file. Check that the asset is valid and self-contained.')};
+  try{
+   if(extension==='glb'||extension==='gltf')new GLTFLoader().load(url,gltf=>done(gltf.scene),undefined,fail);
+   else if(extension==='fbx')new FBXLoader().load(url,done,undefined,fail);
+   else if(extension==='obj')new OBJLoader().load(url,done,undefined,fail);
+   else if(extension==='stl'||extension==='ply'){
+    const loader=extension==='stl'?new STLLoader():new PLYLoader();
+    loader.load(url,geometry=>{
+     if(extension==='ply'&&geometry.hasAttribute('color')){
+      done(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true})));
+     }else{
+      if(!geometry.getAttribute('normal'))geometry.computeVertexNormals();
+      done(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x9aaec8,metalness:.25,roughness:.55})));
+     }
+    },undefined,fail);
+   }else if(extension==='dae')new ColladaLoader().load(url,collada=>done(collada.scene),undefined,fail);
+   else if(extension==='usdz')new USDZLoader().load(url,done,undefined,fail);
+   else if(extension==='3mf')new ThreeMFLoader().load(url,done,undefined,fail);
+   else fail();
+  }catch{fail()}
+  return()=>{cancelled=true;URL.revokeObjectURL(url)};
+ },[file]);
+
+ return <div ref={host} style={{position:'absolute',inset:0}}>{error&&<div className="loaderror">{error}</div>}</div>;
 });
 export default ModelViewer;
