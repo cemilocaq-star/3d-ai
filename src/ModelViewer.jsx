@@ -189,7 +189,11 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const animate=()=>{
    frame=requestAnimationFrame(animate);
    controls.update();
-   const visibleSelected=selectedMeshes.filter(mesh=>mesh.visible);
+   const visibleSelected=selectedMeshes.filter(mesh=>{
+    let node=mesh;
+    while(node){if(!node.visible)return false;node=node.parent}
+    return true;
+   });
    if(visibleSelected.length){
     selectionBox.box.makeEmpty();
     visibleSelected.forEach(mesh=>selectionBox.box.union(new THREE.Box3().setFromObject(mesh)));
@@ -291,6 +295,16 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    selectionBox.box.setFromObject(match);
    selectionBox.visible=match.visible;
    return true;
+  },
+  toggleHierarchyVisibility(objectId){
+   const root=state.current.current;
+   if(!root||typeof objectId!=='string')return null;
+   let match=null;
+   root.traverse(node=>{if(!match&&node.uuid===objectId)match=node});
+   if(!match)return null;
+   match.visible=!match.visible;
+   onLoaded(measure(root));
+   return match.visible;
   },
   toggleMeshVisibility(meshId){
    const root=state.current.current;
