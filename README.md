@@ -15,6 +15,7 @@ The Vite development server proxies `/api` requests to the API on port 8787. For
 - `OPENAI_MODEL` optionally selects the chat model; the default is `gpt-4o-mini`.
 - `GET /api/health` reports whether a key is configured without exposing the key.
 - `POST /api/chat` provides server-side AI chat. Requests are size-limited, limited to 20 requests per IP per minute, and use a 45-second upstream timeout.
+- When a model is loaded, the chat receives its filename, format and basic mesh/vertex/triangle counts. It does not receive the model's geometry or textures.
 
 The in-memory rate limiter is suitable for a single server process. A multi-instance deployment should use a shared rate-limit store so limits apply across instances.
 
@@ -25,12 +26,14 @@ The in-memory rate limiter is suitable for a single server process. A multi-inst
 - Export the currently loaded scene as binary GLB.
 - Responsive studio layout and assistant chat interface.
 - Optional OpenAI chat backend with server-only API key handling, a health-status endpoint, request rate limiting and upstream timeout.
-- Backend unit tests for rate-limit enforcement, window reset, client isolation and invalid configuration.
+- Safe, validated asset metadata is included in chat context so Nova can refer to basic model statistics.
+- Backend unit tests cover rate limiting and asset metadata validation.
 - GitHub Actions runs backend syntax checks, backend tests and the production frontend build.
 
 ## Known limitations
 - Text-to-3D generation and AI-driven geometry/material editing are not implemented.
-- Chat does not receive raw model geometry or file contents; it only knows whether an asset is loaded.
+- Chat does not receive raw model geometry, textures or file contents; it only receives basic metadata.
+- Basic statistics do not allow Nova to identify the model's shape, materials, topology quality or visual defects.
 - OBJ companion MTL/textures and other multi-file asset packages are not handled.
 - Only the listed formats are wired; this is not universal 3D-format support.
 - Browser/device and live provider tests are still required before production use.
