@@ -89,36 +89,51 @@ function applySceneActions(root,actions){
 }
 function measure(root){
  root.updateMatrixWorld(true);
- let meshes=0,vertices=0,triangles=0;
+ let meshes=0,vertices=0,triangles=0,uvMeshes=0,normalMeshes=0,vertexColorMeshes=0,skinnedMeshes=0,morphMeshes=0;
  const materials=new Set(),textures=new Set(),meshDetails=[];
  root.traverse(node=>{
   if(!node.isMesh)return;
   meshes++;
   if(!node.name)node.name='Mesh '+meshes;
   const geometry=node.geometry;
-  const vertexCount=geometry?.attributes?.position?.count||0;
+  const attributes=geometry?.attributes||{};
+  const vertexCount=attributes.position?.count||0;
   const triangleCount=Math.floor((geometry?.index?.count||vertexCount)/3);
+  const hasUV=Boolean(attributes.uv);
+  const hasNormals=Boolean(attributes.normal);
+  const hasVertexColors=Boolean(attributes.color);
+  const hasSkinning=Boolean(node.isSkinnedMesh);
+  const morphTargets=Object.values(geometry?.morphAttributes||{}).some(list=>Array.isArray(list)&&list.length>0);
   vertices+=vertexCount;
   triangles+=triangleCount;
+  if(hasUV)uvMeshes++;
+  if(hasNormals)normalMeshes++;
+  if(hasVertexColors)vertexColorMeshes++;
+  if(hasSkinning)skinnedMeshes++;
+  if(morphTargets)morphMeshes++;
   const meshMaterials=Array.isArray(node.material)?node.material:[node.material];
-  const materialNames=[];
+  const materialNames=[],materialColors=[];
   for(const material of meshMaterials.filter(Boolean)){
    materials.add(material);
    if(material.name)materialNames.push(material.name.slice(0,80));
+   if(material.color?.isColor)materialColors.push('#'+material.color.getHexString());
    for(const value of Object.values(material))if(value?.isTexture)textures.add(value);
   }
   if(meshDetails.length<20){
    meshDetails.push({
     name:(node.name||'Mesh '+meshes).slice(0,80),
-    vertices:vertexCount,
-    triangles:triangleCount,
+    geometryType:geometry?.type||'BufferGeometry',
+    vertices:vertexCount,triangles:triangleCount,
     dimensions:getDimensions(node),
-    materials:[...new Set(materialNames)].slice(0,4)
+    hasUV,hasNormals,hasVertexColors,hasSkinning,morphTargets,
+    materials:[...new Set(materialNames)].slice(0,4),
+    materialColors:[...new Set(materialColors)].slice(0,4)
    });
   }
  });
  return{
   meshes,vertices,triangles,materials:materials.size,textures:textures.size,
+  uvMeshes,normalMeshes,vertexColorMeshes,skinnedMeshes,morphMeshes,
   dimensions:getDimensions(root),meshDetails
  };
 }
