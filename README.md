@@ -78,7 +78,7 @@ The workspace is designed to work on phone-sized screens as well as desktop:
 - Use the bottom **Studio** and **Nova** tabs to switch between the 3D viewport and the full-screen chat.
 - Tap **Multi** in Studio before tapping meshes to select multiple parts by touch. Turn it off to return to single selection.
 - Use **GLB** where possible. A single-file GLB keeps geometry and embedded textures together and is the most reliable format for mobile import.
-- The import progress panel reports loading status. Models over 150 MB are rejected to reduce the risk of mobile browser memory or GPU failures.
+- The import progress panel reports loading status. Models over 75 MB are rejected on phone-sized screens and models over 150 MB are rejected on larger screens to reduce the risk of browser memory or GPU failures.
 - A `.gltf` file is accepted when its buffers and images are embedded as data URIs. Files that reference separate `.bin` or image files are rejected with a prompt to export one `.glb`; multi-file bundles are not yet supported.
 - WebGL and hardware acceleration are required. Older phones may not have enough GPU memory for complex scenes; reduce polygon counts and texture dimensions before import.
 
