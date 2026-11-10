@@ -52,3 +52,5 @@ button,.toolbtn{min-height:36px}
  .mobile-chat .assistant{height:calc(100dvh - 118px)}
  .mobile-chat .messages{max-height:none}
 }
+
+.view canvas{touch-action:none}.viewport-loading{position:absolute;inset:0;display:grid;place-items:center;color:#91a7c4;font-size:12px;background:#0b101a}
