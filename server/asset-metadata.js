@@ -6,7 +6,7 @@ function safeCount(value) {
 
 function safeText(value, maxLength = 80) {
   if (typeof value !== 'string') return null;
-  const result = value.replace(/[\\u0000-\\u001f\\u007f]/g, '').trim().slice(0, maxLength);
+  const result = value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
   return result || null;
 }
 
