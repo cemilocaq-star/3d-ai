@@ -94,6 +94,13 @@ function measure(root){
  root.updateMatrixWorld(true);
  let meshes=0,vertices=0,triangles=0,uvMeshes=0,normalMeshes=0,vertexColorMeshes=0,skinnedMeshes=0,morphMeshes=0;
  const materials=new Set(),textures=new Set(),meshDetails=[];
+ const hierarchy=[];
+ const addHierarchy=(node,parentId=null,depth=0)=>{
+  if(hierarchy.length>=200)return;
+  hierarchy.push({id:node.uuid,parentId,name:(node.name||node.type||'Object').slice(0,80),kind:node.isMesh?'Mesh':node.type||'Object',depth,visible:node.visible});
+  for(const child of node.children||[])addHierarchy(child,node.uuid,depth+1);
+ };
+ addHierarchy(root);
  root.traverse(node=>{
   if(!node.isMesh)return;
   meshes++;
@@ -139,7 +146,7 @@ function measure(root){
  return{
   meshes,vertices,triangles,materials:materials.size,textures:textures.size,
   uvMeshes,normalMeshes,vertexColorMeshes,skinnedMeshes,morphMeshes,
-  dimensions:getDimensions(root),meshDetails
+  dimensions:getDimensions(root),meshDetails,hierarchy
  };
 }
 
