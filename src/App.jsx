@@ -50,7 +50,7 @@ export default function App(){
   setSelectedMeshIds(current=>current.filter(id=>nextStats?.hierarchy?.some(node=>node.id===id&&node.kind==='Mesh')));
  },[]);
  const updateSelection=(ids,event)=>{
-  const unique=[...new Set(ids)];
+  const unique=[...new Set(ids)].slice(0,20);
   if(event?.ctrlKey||event?.metaKey||event?.shiftKey){
    setSelectedMeshIds(current=>{
     const next=new Set(current);
@@ -106,7 +106,7 @@ export default function App(){
   setBusy(true);
   try{
    const extension=file?.name.split('.').pop().toLowerCase();
-   const asset=file?{filename:file.name,format:extension,stats:stats||null}:null;
+   const asset=stats?{filename:file?.name||'nova-scene',format:extension||'scene',stats}:null;
    const response=await fetch('/api/v1/chat',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
