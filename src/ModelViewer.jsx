@@ -10,6 +10,7 @@ import {PLYLoader} from 'three/addons/loaders/PLYLoader.js';
 import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {USDZLoader} from 'three/addons/loaders/USDZLoader.js';
 import {ThreeMFLoader} from 'three/addons/loaders/3MFLoader.js';
+import {buildPromptModel} from './prompt-model.js';
 
 function collectResources(root){
  const geometries=new Set(),materials=new Set(),textures=new Set();
@@ -466,6 +467,15 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadPr
    if(selectedMesh===match&&!match.visible)selectionBox.visible=false;
    onLoaded(measure(root));
    return match.visible;
+  },
+  createModelFromPrompt(prompt){
+   const clean=String(prompt||'').trim();
+   if(!clean)return {ok:false,reason:'Describe the model you want to create.'};
+   const model=buildPromptModel(clean);
+   state.current.load(model);
+   selectedMesh=null;selectedMeshes=[];
+   const stats=measure(model);onLoaded(stats);
+   return {ok:true,name:model.name,stats};
   },
   applyActions(actions){
    let root=state.current.current;
