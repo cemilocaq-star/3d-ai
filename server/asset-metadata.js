@@ -39,7 +39,14 @@ function normalizeMeshDetails(input) {
       vertices: safeCount(item.vertices),
       triangles: safeCount(item.triangles),
       dimensions: normalizeDimensions(item.dimensions),
-      materials: normalizeNames(item.materials, 4)
+      geometryType: safeText(item.geometryType, 48),
+      hasUV: typeof item.hasUV === 'boolean' ? item.hasUV : null,
+      hasNormals: typeof item.hasNormals === 'boolean' ? item.hasNormals : null,
+      hasVertexColors: typeof item.hasVertexColors === 'boolean' ? item.hasVertexColors : null,
+      hasSkinning: typeof item.hasSkinning === 'boolean' ? item.hasSkinning : null,
+      morphTargets: typeof item.morphTargets === 'boolean' ? item.morphTargets : null,
+      materials: normalizeNames(item.materials, 4),
+      materialColors: Array.isArray(item.materialColors) ? item.materialColors.slice(0, 4).filter(value => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)).map(value => value.toLowerCase()) : []
     };
     return Object.values(normalized).some(value => value !== null && value !== undefined && (!Array.isArray(value) || value.length > 0))
       ? normalized
@@ -64,6 +71,11 @@ export function normalizeAssetMetadata(input) {
     triangles: safeCount(statsInput.triangles),
     materials: safeCount(statsInput.materials),
     textures: safeCount(statsInput.textures),
+    uvMeshes: safeCount(statsInput.uvMeshes),
+    normalMeshes: safeCount(statsInput.normalMeshes),
+    vertexColorMeshes: safeCount(statsInput.vertexColorMeshes),
+    skinnedMeshes: safeCount(statsInput.skinnedMeshes),
+    morphMeshes: safeCount(statsInput.morphMeshes),
     dimensions: normalizeDimensions(statsInput.dimensions),
     meshDetails: normalizeMeshDetails(statsInput.meshDetails)
   };
