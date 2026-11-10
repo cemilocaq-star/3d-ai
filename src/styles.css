@@ -70,3 +70,21 @@ button,.toolbtn{min-height:36px}
 @keyframes nova-progress{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}
 .loaderror{line-height:1.5;max-height:40%;overflow:auto}
 @media(max-width:680px){.import-progress{top:8px;left:8px;right:8px;padding:9px 10px}.status{display:none}}
+
+
+/* Private workspace sign-in */
+.auth-screen{min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 35%,#14243a 0%,#080b12 58%)}
+.auth-card{width:min(100%,390px);padding:30px;border:1px solid #2b3e58;border-radius:16px;background:#0b111c;box-shadow:0 20px 70px #0008;display:flex;flex-direction:column;gap:12px}
+.auth-card .brandmark{width:42px;height:42px;display:grid;place-items:center;margin-bottom:8px}
+.auth-eyebrow{color:#91b9ed;font-size:10px;letter-spacing:2px;font-weight:700}
+.auth-card h1{margin:0;color:#edf4ff;font-size:24px;letter-spacing:-.5px}
+.auth-card p{margin:0 0 8px;color:#91a1b7;font-size:13px;line-height:1.6}
+.auth-card label{color:#bac9dc;font-size:12px;font-weight:600}
+.auth-card input{width:100%;min-height:46px;padding:0 13px;border:1px solid #344963;border-radius:8px;background:#0f1928;color:#e7effb;font:14px system-ui,sans-serif;outline:none}
+.auth-card input:focus{border-color:#78adf1;box-shadow:0 0 0 3px #78adf122}
+.auth-submit{min-height:46px;border:1px solid #3c6ba2;border-radius:8px;background:#1c416b;color:#f1f7ff;font:600 13px system-ui,sans-serif;cursor:pointer}
+.auth-submit:disabled{opacity:.5;cursor:not-allowed}
+.auth-card>small{margin-top:6px;color:#71839b;font-size:10px;line-height:1.5;text-align:center}
+.auth-error,.auth-inline-error{padding:10px;border:1px solid #73454b;border-radius:7px;background:#321d24;color:#ffd9dc;font-size:12px;line-height:1.5}
+.auth-inline-error{margin:8px 13px 0}
+@media(max-width:480px){.auth-screen{padding:16px}.auth-card{padding:24px 20px}.auth-card h1{font-size:22px}}
