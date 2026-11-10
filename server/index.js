@@ -197,7 +197,7 @@ app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
               properties: {
                 type: { type: 'string', enum: ['rename_object', 'set_material_color', 'set_transform', 'add_primitive', 'delete_object'] },
                 objectName: { type: 'string', maxLength: 80 },
-                objectId: { type: 'string', pattern: '^[0-9a-fA-F-]{36}
+                objectId: { type: 'string', pattern: '^[0-9a-fA-F-]{36}$' },
                 name: { type: 'string', maxLength: 80 },
                 primitive: { type: 'string', enum: ['box', 'sphere', 'cylinder', 'torus'] },
                 color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$' },
