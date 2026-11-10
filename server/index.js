@@ -85,7 +85,7 @@ app.get('/api/v1/openapi.json', (_req, res) => {
                         }
                       }
                     },
-                    mode: { type: 'string', enum: ['Nova Vision', 'Nova Reasoner'] },
+                    mode: { type: 'string', enum: ['Nova Studio', 'Nova Reasoner'] },
                     asset: { type: 'object', description: 'Optional validated 3D asset metadata.' }
                   }
                 }
