@@ -206,7 +206,9 @@ app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
                 objectIds: { type: 'array', maxItems: 20, items: { type: 'string', maxLength: 36 } },
                 name: { type: 'string', maxLength: 80 },
                 primitive: { type: 'string', enum: ['box', 'sphere', 'cylinder', 'torus'] },
-                color: { type: 'string', pattern: '^#[0-9a-fA-F]{6}
+                color: { type: 'string', maxLength: 7 },
+                roughness: { type: 'number', minimum: 0, maximum: 1 },
+                metalness: { type: 'number', minimum: 0, maximum: 1 },
                 position: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } }, required: ['x', 'y', 'z'] },
                 rotation: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } }, required: ['x', 'y', 'z'] },
                 scale: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } }, required: ['x', 'y', 'z'] }
