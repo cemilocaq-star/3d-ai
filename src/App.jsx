@@ -35,14 +35,15 @@ export default function App(){
  const [materialMessage,setMaterialMessage]=useState('');
  const selectedMeshId=selectedMeshIds[selectedMeshIds.length-1]||null;
  const [gridOn,setGridOn]=useState(true);
- const [apiReady,setApiReady]=useState(false);
+ const [apiStatus,setApiStatus]=useState('checking');
+ const [loadProgress,setLoadProgress]=useState(null);
  const [mobileTab,setMobileTab]=useState('studio');
 
  useEffect(()=>{
   fetch('/api/v1/health')
-   .then(response=>response.json())
-   .then(data=>setApiReady(Boolean(data.configured)))
-   .catch(()=>setApiReady(false));
+   .then(response=>{if(!response.ok)throw new Error('API unavailable');return response.json()})
+   .then(data=>setApiStatus(data.configured?'ready':'unconfigured'))
+   .catch(()=>setApiStatus('offline'));
  },[]);
 
  useEffect(()=>{
@@ -52,7 +53,11 @@ export default function App(){
 
  const handleLoaded=useCallback(nextStats=>{
   setStats(nextStats);
+  setLoadProgress(null);
   setSelectedMeshIds(current=>current.filter(id=>nextStats?.hierarchy?.some(node=>node.id===id&&node.kind==='Mesh')));
+ },[]);
+ const handleLoadProgress=useCallback(progress=>{
+  setLoadProgress(progress?.status==='loading'?progress:null);
  },[]);
  const updateSelection=(ids,event)=>{
   const unique=[...new Set(ids)].slice(0,20);
@@ -93,13 +98,23 @@ export default function App(){
   if(!selectedFile)return;
   const extension=selectedFile.name.split('.').pop().toLowerCase();
   if(!formats.includes(extension)){
-   setMessages(current=>[...current,{role:'assistant',text:'Unsupported extension: .'+extension+'. Supported formats: '+formats.join(', ')}]);
+   setLoadProgress(null);
+   setMessages(current=>[...current,{role:'assistant',text:'Unsupported extension: .'+extension+'. Supported formats: '+formats.join(', ')}].slice(-80));
+   return;
+  }
+  const maxModelBytes=150*1024*1024;
+  if(selectedFile.size>maxModelBytes){
+   setLoadProgress(null);
+   setMessages(current=>[...current,{role:'assistant',text:'This model is larger than 150 MB. For a smoother mobile experience, reduce the model size or export an optimized GLB.'}].slice(-80));
    return;
   }
   setFile(selectedFile);
   setStats(null);
-  setMessages(current=>[...current,{role:'assistant',text:'Imported '+selectedFile.name+'. I can use its structural statistics in our conversation, but I cannot visually inspect the model from statistics alone.'}]);
- };
+  setSelectedMeshIds([]);
+  setMaterialMessage('');
+  setLoadProgress({status:'loading',loaded:0,total:selectedFile.size,percent:0,phase:'Preparing model'});
+  setMessages(current=>[...current,{role:'assistant',text:'Imported '+selectedFile.name+'. I can use its structural statistics in our conversation after the model finishes loading.'}].slice(-80));
+ };;
 
  const upload=event=>{
   acceptFile(event.target.files?.[0]);
@@ -110,10 +125,16 @@ export default function App(){
   setDragging(false);
   acceptFile(event.dataTransfer.files?.[0]);
  };
- const newProject=()=>{
+ const clearAsset=()=>{
   viewerRef.current?.clearScene();
   setFile(null);
   setStats(null);
+  setSelectedMeshIds([]);
+  setMaterialMessage('');
+  setLoadProgress(null);
+ };
+ const newProject=()=>{
+  clearAsset();
   setPrompt('');
   setMessages([welcomeMessage]);
  };
@@ -121,7 +142,7 @@ export default function App(){
   const text=prompt.trim();
   if(!text||busy)return;
   setPrompt('');
-  const conversation=[...messages,{role:'user',text}].slice(-16);
+  const conversation=[...messages,{role:'user',text}].slice(-80);
   setMessages(conversation);
   setBusy(true);
   try{
@@ -131,7 +152,7 @@ export default function App(){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({
-     messages:conversation.map(item=>({role:item.role,content:item.text})),
+     messages:conversation.slice(-16).map(item=>({role:item.role,content:item.text})),
      mode:model,
      asset,
      selectedMeshId,
@@ -145,12 +166,12 @@ export default function App(){
     const outcomes=viewerRef.current?.applyActions(actions)||actions.map(action=>({type:action.type,ok:false,reason:'No active 3D scene'}));
     const applied=outcomes.filter(result=>result.ok).length;
     const failed=outcomes.length-applied;
-    let confirmation=applied
-     ? 'Applied '+applied+' of '+actions.length+' requested scene change(s) in the viewport.'
-     : 'I could not apply the requested scene changes. Check that the target object names match.';
-    if(failed&&applied)confirmation+=' '+failed+' change(s) could not be applied.';
-    if(applied===actions.length&&typeof data.reply==='string'&&data.reply.trim())confirmation+='\\n\\n'+data.reply.trim();
-    setMessages(current=>[...current,{role:'assistant',text:confirmation}].slice(-80));
+    const summary=[
+     applied?'Applied '+applied+' of '+actions.length+' requested scene change(s) in the viewport.':'No requested scene changes could be applied. Check the selected object and target names.',
+     failed?failed+' change(s) could not be applied.':'',
+     typeof data.reply==='string'?data.reply.trim():''
+    ].filter(Boolean).join('\\n\\n');
+    setMessages(current=>[...current,{role:'assistant',text:summary}].slice(-80));
    }else{
     if(typeof data.reply!=='string'||!data.reply.trim())throw new Error('Nova API returned an empty response.');
     setMessages(current=>[...current,{role:'assistant',text:data.reply.trim()}].slice(-80));
@@ -178,7 +199,7 @@ export default function App(){
   <main className="main">
    <header>
     <div className="crumb"><PanelLeft size={17}/><span>Workspace</span><i>/</i><b>Untitled project</b></div>
-    <div className="headerRight"><span className="status"><span/> {apiReady?'Nova API configured':'Nova API not configured'}</span><button className="share" onClick={()=>viewerRef.current?.exportGLB().catch(error=>setMessages(current=>[...current,{role:'assistant',text:error.message}]))}><Download size={14}/> Export GLB</button></div>
+    <div className="headerRight"><span className="status"><span className={'api-indicator '+apiStatus}/> {apiStatus==='ready'?'Nova API ready':apiStatus==='unconfigured'?'Provider key required':apiStatus==='offline'?'Nova API offline':'Checking Nova API…'}</span><button className="share" onClick={()=>viewerRef.current?.exportGLB().catch(error=>setMessages(current=>[...current,{role:'assistant',text:error.message}]))}><Download size={14}/> Export GLB</button></div>
    </header>
    <div className="workspace">
     <section className="viewportPanel">
@@ -187,11 +208,12 @@ export default function App(){
       <div className="tools">
        <label className="toolbtn"><Upload size={15}/> Import<input id="nova-file-input" type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label>
        <button className="toolbtn" onClick={()=>setGridOn(viewerRef.current?.toggleGrid()??gridOn)}><Layers size={15}/> Grid {gridOn?'On':'Off'}</button>
-       <button className="toolbtn" onClick={()=>{viewerRef.current?.clearScene();setFile(null);setStats(null)}}><RotateCcw size={15}/> Clear</button>
+       <button className="toolbtn" onClick={clearAsset}><RotateCcw size={15}/> Clear</button>
       </div>
      </div>
      <div className={'view '+(dragging?'dragging':'')} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget))setDragging(false)}} onDrop={onDrop}>
-      <Suspense fallback={<div className="viewport-loading" role="status">Loading 3D engine…</div>}><ModelViewer ref={viewerRef} key={file?.name||'empty'} file={file} onLoaded={handleLoaded}/></Suspense>
+      <Suspense fallback={<div className="viewport-loading" role="status">Loading 3D engine…</div>}><ModelViewer ref={viewerRef} key={file?.name||'empty'} file={file} onLoaded={handleLoaded} onLoadProgress={handleLoadProgress}/></Suspense>
+      {loadProgress&&<div className="import-progress" role="status" aria-live="polite"><div><b>{loadProgress.phase||'Loading model'}</b><span>{loadProgress.percent===null?'Working…':Math.round(loadProgress.percent)+'%'}</span></div><div className="progress-track"><span className={loadProgress.percent===null?'indeterminate':''} style={{width:loadProgress.percent===null?'35%':loadProgress.percent+'%'}}/></div></div>}
       {stats&&<><div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>{stats.meshDetails?.length>0&&<details className="mesh-inspector"><summary>Mesh inspection · {stats.meshDetails.length}{stats.meshes>stats.meshDetails.length?' of '+stats.meshes:''}</summary><div className="mesh-list">{stats.meshDetails.map((mesh,index)=><div className={'mesh-row '+(selectedMeshIds.includes(mesh.id)?'selected':'')} key={mesh.id||index} role="button" tabIndex={0} aria-pressed={selectedMeshIds.includes(mesh.id)} onClick={event=>selectMesh(mesh.id,event)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();selectMesh(mesh.id,event)}}}><div className="mesh-row-head"><b>{mesh.name}</b><button className="visibility-toggle" onClick={event=>{event.stopPropagation();const visible=viewerRef.current?.toggleMeshVisibility(mesh.id);if(visible!==null&&visible!==undefined)setStats(current=>current?{...current,meshDetails:current.meshDetails.map(item=>item.id===mesh.id?{...item,visible}:item)}:current)}}>{mesh.visible?'Hide':'Show'}</button></div><span>{mesh.geometryType} · {mesh.vertices.toLocaleString()} vertices · {mesh.triangles.toLocaleString()} triangles</span><span>{mesh.dimensions?[mesh.dimensions.x,mesh.dimensions.y,mesh.dimensions.z].join(' × ')+' units':''}</span><span>{[mesh.hasUV?'UV':'',mesh.hasNormals?'Normals':'',mesh.hasVertexColors?'Vertex colors':'',mesh.hasSkinning?'Skinned':'',mesh.morphTargets?'Morph targets':''].filter(Boolean).join(' · ')||'No UV/normal/skin/morph flags detected'}</span>{mesh.materials?.length>0&&<span>Materials: {mesh.materials.join(', ')}</span>}{mesh.materialColors?.length>0&&<span className="swatches">{mesh.materialColors.map(color=><i key={color} title={color} style={{backgroundColor:color}}/>)} <small>{mesh.materialColors.join(' ')}</small></span>}</div>)}</div><details className="hierarchy-tree"><summary>Scene hierarchy · {stats.hierarchy?.length||0}{stats.hierarchy?.length>=200?' (first 200)':''} · {selectedMeshIds.length} selected</summary><div className="hierarchy-list">{(stats.hierarchy||[]).map(node=><div key={node.id} className={'hierarchy-node '+(node.kind==='Mesh'?'mesh-node':'group-node')+(selectedMeshIds.includes(node.id)?' selected':'')} style={{paddingLeft:8+node.depth*12}}>{node.kind==='Mesh'?<button className="hierarchy-select" onClick={event=>selectHierarchyNode(node,event)} aria-pressed={selectedMeshIds.includes(node.id)}><span className="hierarchy-kind">◈</span><span>{node.name}</span></button>:<button className="hierarchy-group" onClick={event=>selectHierarchyNode(node,event)}><span className="hierarchy-kind">▸</span>{node.name} <small>{node.kind}</small></button>}<button className="visibility-toggle hierarchy-eye" onClick={event=>{event.stopPropagation();viewerRef.current?.toggleHierarchyVisibility(node.id)}}>{node.visible?'Hide':'Show'}</button><span className="hierarchy-visibility">{node.visible?'Visible':'Hidden'}</span></div>)}</div></details><details className="material-editor"><summary>Material editor · {selectedMeshIds.length} selected</summary><div className="material-controls"><label>Base color<input aria-label="Material base color" type="color" value={materialColor} onChange={event=>setMaterialColor(event.target.value)}/></label><label>Roughness <b>{materialRoughness.toFixed(2)}</b><input aria-label="Material roughness" type="range" min="0" max="1" step="0.01" value={materialRoughness} onChange={event=>setMaterialRoughness(Number(event.target.value))}/></label><label>Metallic <b>{materialMetalness.toFixed(2)}</b><input aria-label="Material metallic" type="range" min="0" max="1" step="0.01" value={materialMetalness} onChange={event=>setMaterialMetalness(Number(event.target.value))}/></label><button className="toolbtn material-apply" disabled={!selectedMeshIds.length} onClick={applyMaterial}>Apply to selection</button><label className="toolbtn texture-upload">Import texture<input type="file" accept="image/png,image/jpeg,image/webp" onChange={applyTexture} hidden/></label>{materialMessage&&<small role="status">{materialMessage}</small>}</div></details></details>}</>}
       {dragging&&<div className="dropcover">Drop your 3D file to import</div>}
       {!file&&!stats&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
