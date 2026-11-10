@@ -152,8 +152,9 @@ app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
     ? req.body.selectedMeshId
     : selectedMeshIds[selectedMeshIds.length - 1] || null;
   const rawMeshDetails = Array.isArray(req.body?.asset?.stats?.meshDetails) ? req.body.asset.stats.meshDetails : [];
-  const selectedMeshes = selectedMeshIds.length
-    ? selectedMeshIds.map(id => {
+  const effectiveSelectedIds = selectedMeshIds.length ? selectedMeshIds : selectedMeshId ? [selectedMeshId] : [];
+  const selectedMeshes = effectiveSelectedIds.length
+    ? effectiveSelectedIds.map(id => {
         const mesh = rawMeshDetails.find(item => item && item.id === id);
         if (!mesh) return null;
         const normalized = normalizeAssetMetadata({ filename: 'selected-mesh', stats: { meshDetails: [mesh] } });
