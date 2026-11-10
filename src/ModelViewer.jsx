@@ -11,15 +11,31 @@ import {ColladaLoader} from 'three/addons/loaders/ColladaLoader.js';
 import {USDZLoader} from 'three/addons/loaders/USDZLoader.js';
 import {ThreeMFLoader} from 'three/addons/loaders/3MFLoader.js';
 
-function disposeObject(root){
+function collectResources(root){
+ const geometries=new Set(),materials=new Set(),textures=new Set();
  root?.traverse?.(node=>{
-  if(node.geometry)node.geometry.dispose();
-  const materials=Array.isArray(node.material)?node.material:[node.material];
-  materials.filter(Boolean).forEach(material=>{
-   Object.values(material).forEach(value=>{if(value?.isTexture)value.dispose()});
-   material.dispose();
+  if(node.geometry)geometries.add(node.geometry);
+  const list=Array.isArray(node.material)?node.material:[node.material];
+  list.filter(Boolean).forEach(material=>{
+   materials.add(material);
+   Object.values(material).forEach(value=>{if(value?.isTexture)textures.add(value)});
   });
  });
+ return{geometries,materials,textures};
+}
+function disposeResources(resources,retainedRoot=null){
+ const retained=collectResources(retainedRoot);
+ resources.geometries.forEach(item=>{if(!retained.geometries.has(item))item.dispose()});
+ resources.materials.forEach(item=>{if(!retained.materials.has(item))item.dispose()});
+ resources.textures.forEach(item=>{if(!retained.textures.has(item))item.dispose()});
+}
+function disposeObject(root,retainedRoot=null){
+ disposeResources(collectResources(root),retainedRoot);
+}
+function disposeReplacedMaterials(materials,retainedRoot){
+ const resources={geometries:new Set(),materials:new Set(materials.filter(Boolean)),textures:new Set()};
+ resources.materials.forEach(material=>Object.values(material).forEach(value=>{if(value?.isTexture)resources.textures.add(value)}));
+ disposeResources(resources,retainedRoot);
 }
 function rounded(value){return Number.isFinite(value)?Math.round(value*1000)/1000:null}
 function getDimensions(object){
@@ -80,7 +96,9 @@ function applySceneActions(root,actions){
     if(Number.isFinite(action.metalness)&&'metalness' in material)material.metalness=action.metalness;
     material.needsUpdate=true;
    });
+   const previous=Array.isArray(target.material)?target.material:[target.material];
    target.material=Array.isArray(target.material)?next:next[0];
+   disposeReplacedMaterials(previous,root);
    results.push({type:action.type,ok:true,name:target.name});
   }else if(action.type==='set_transform'){
    if(action.position)target.position.set(action.position.x,action.position.y,action.position.z);
@@ -94,7 +112,7 @@ function applySceneActions(root,actions){
   }else if(action.type==='delete_object'){
    if(target===root||!target.parent){results.push({type:action.type,ok:false,reason:'The scene root cannot be deleted'});continue}
    target.parent.remove(target);
-   disposeObject(target);
+   disposeObject(target,root);
    results.push({type:action.type,ok:true,name:target.name});
   }else{
    results.push({type:action.type,ok:false,reason:'Unsupported scene action'});
@@ -163,7 +181,7 @@ function measure(root){
  };
 }
 
-const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
+const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadProgress=()=>{}},ref){
  const host=useRef(null),state=useRef({}),[error,setError]=useState('');
  useEffect(()=>{
   const element=host.current;
@@ -178,7 +196,13 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const camera=new THREE.PerspectiveCamera(45,1,.01,10000);
   camera.position.set(4,3,5);
   const mobileViewport=window.matchMedia('(max-width: 680px)').matches;
-  const renderer=new THREE.WebGLRenderer({antialias:!mobileViewport,alpha:false,powerPreference:'high-performance'});
+  let renderer;
+  try{
+   renderer=new THREE.WebGLRenderer({antialias:!mobileViewport,alpha:false,powerPreference:'high-performance'});
+  }catch{
+   setError('This browser could not start WebGL. Try a browser with hardware acceleration enabled or a newer device.');
+   return ()=>{};
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobileViewport?1.5:2));
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   element.appendChild(renderer.domElement);
@@ -200,8 +224,9 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    camera.updateProjectionMatrix();
    renderer.setSize(width,height);
   };
-  const observer=new ResizeObserver(resize);
-  observer.observe(element);
+  const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(resize):null;
+  observer?.observe(element);
+  window.addEventListener('resize',resize);
   const animate=()=>{
    if(!running)return;
    frame=requestAnimationFrame(animate);
@@ -225,6 +250,20 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    else if(!shouldRun&&running){running=false;cancelAnimationFrame(frame);frame=0}
   };
   const onVisibilityChange=()=>syncRendering();
+  const onContextLost=event=>{
+   event.preventDefault();
+   running=false;
+   cancelAnimationFrame(frame);
+   frame=0;
+   setError('The 3D graphics context was interrupted. Wait for the browser to restore it or reload the studio.');
+  };
+  const onContextRestored=()=>{
+   setError('');
+   resize();
+   syncRendering();
+  };
+  renderer.domElement.addEventListener('webglcontextlost',onContextLost,false);
+  renderer.domElement.addEventListener('webglcontextrestored',onContextRestored,false);
   document.addEventListener('visibilitychange',onVisibilityChange);
   let intersectionObserver=null;
   if(typeof IntersectionObserver!=='undefined'){
@@ -276,7 +315,10 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    cancelAnimationFrame(frame);
    document.removeEventListener('visibilitychange',onVisibilityChange);
    intersectionObserver?.disconnect();
-   observer.disconnect();
+   observer?.disconnect();
+   window.removeEventListener('resize',resize);
+   renderer.domElement.removeEventListener('webglcontextlost',onContextLost,false);
+   renderer.domElement.removeEventListener('webglcontextrestored',onContextRestored,false);
    controls.dispose();
    const loaded=state.current.current;
    if(loaded){scene.remove(loaded);disposeObject(loaded)}
@@ -302,7 +344,9 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
      copy.needsUpdate=true;
      return copy;
     });
+    const previous=list;
     mesh.material=Array.isArray(mesh.material)?next:next[0];
+    disposeReplacedMaterials(previous,root);
     changed++;
    });
    if(changed)onLoaded(measure(root));
@@ -320,8 +364,10 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
     if((texture.image?.width||0)>4096||(texture.image?.height||0)>4096){texture.dispose();return {ok:false,reason:'Texture dimensions must be 4096 × 4096 pixels or smaller'}}
     texture.colorSpace=THREE.SRGBColorSpace;
     texture.needsUpdate=true;
+    const previousMaterials=[];
     eligible.forEach(mesh=>{
      const source=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+     previousMaterials.push(...source);
      const next=source.map(material=>{
       const copy=material.clone();
       copy.map=texture;
@@ -330,6 +376,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
      });
      mesh.material=Array.isArray(mesh.material)?next:next[0];
     });
+    disposeReplacedMaterials(previousMaterials,root);
     onLoaded(measure(root));
     return {ok:true,changed:eligible.length};
    }catch{
@@ -435,40 +482,98 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    anchor.href=url;
    anchor.download='nova-export.glb';
    anchor.click();
-   URL.revokeObjectURL(url);
+   window.setTimeout(()=>URL.revokeObjectURL(url),30_000);
    return true;
   }
  }),[onLoaded]);
 
  useEffect(()=>{
   if(!file||!state.current.load)return;
-  const url=URL.createObjectURL(file);
-  let cancelled=false;
+  let cancelled=false,failed=false;
   setError('');
   const extension=file.name.split('.').pop().toLowerCase();
-  const done=object=>{if(cancelled)disposeObject(object);else state.current.load(object)};
-  const fail=()=>{if(!cancelled)setError('Could not load this file. Check that the asset is valid and self-contained.')};
-  try{
-   if(extension==='glb'||extension==='gltf')new GLTFLoader().load(url,gltf=>done(gltf.scene),undefined,fail);
-   else if(extension==='fbx')new FBXLoader().load(url,done,undefined,fail);
-   else if(extension==='obj')new OBJLoader().load(url,done,undefined,fail);
-   else if(extension==='stl'||extension==='ply'){
-    const loader=extension==='stl'?new STLLoader():new PLYLoader();
-    loader.load(url,geometry=>{
-     if(extension==='ply'&&geometry.hasAttribute('color')){
-      done(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true})));
-     }else{
-      if(!geometry.getAttribute('normal'))geometry.computeVertexNormals();
-      done(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x9aaec8,metalness:.25,roughness:.55})));
+  const url=URL.createObjectURL(file);
+  const manager=new THREE.LoadingManager();
+  const report=(loaded=0,total=0,phase='Loading model')=>{
+   if(cancelled)return;
+   const safeLoaded=Number.isFinite(loaded)?loaded:0;
+   const safeTotal=Number.isFinite(total)?total:0;
+   onLoadProgress({
+    status:'loading',
+    loaded:safeLoaded,
+    total:safeTotal,
+    percent:safeTotal>0?Math.max(0,Math.min(100,safeLoaded/safeTotal*100)):null,
+    phase
+   });
+  };
+  const done=object=>{
+   if(cancelled){disposeObject(object);return}
+   state.current.load(object);
+   onLoadProgress({status:'loaded',percent:100});
+   URL.revokeObjectURL(url);
+  };
+  const fail=error=>{
+   if(cancelled||failed)return;
+   failed=true;
+   const message=error?.message||'Could not load this file. Check that the asset is valid and self-contained.';
+   setError(message);
+   onLoadProgress({status:'error',message});
+   URL.revokeObjectURL(url);
+  };
+  manager.onProgress=(_resource,loaded,total)=>report(loaded,total,'Loading model resources');
+  manager.onError=resource=>fail(new Error('A model resource could not be loaded: '+resource));
+  const onProgress=event=>report(event?.loaded||0,event?.total||0,'Loading model');
+  const load=async()=>{
+   try{
+    if(extension==='gltf'){
+     report(0,file.size,'Reading glTF file');
+     const source=await file.text();
+     if(cancelled)return;
+     const document=JSON.parse(source);
+     const references=[
+      ...(Array.isArray(document.buffers)?document.buffers:[]),
+      ...(Array.isArray(document.images)?document.images:[])
+     ].map(item=>item?.uri).filter(uri=>typeof uri==='string'&&!uri.startsWith('data:')&&!uri.startsWith('blob:')&&!/^https?:\/\//i.test(uri)&&!uri.startsWith('//'));
+     if(references.length){
+      throw new Error('This .gltf file uses separate model or texture files. Export the asset as a single .glb file and import that on mobile.');
      }
-    },undefined,fail);
-   }else if(extension==='dae')new ColladaLoader().load(url,collada=>done(collada.scene),undefined,fail);
-   else if(extension==='usdz')new USDZLoader().load(url,done,undefined,fail);
-   else if(extension==='3mf')new ThreeMFLoader().load(url,done,undefined,fail);
-   else fail();
-  }catch{fail()}
-  return()=>{cancelled=true;URL.revokeObjectURL(url)};
- },[file]);
+     report(file.size,file.size,'Parsing glTF scene');
+     new GLTFLoader(manager).parse(source,'',gltf=>done(gltf.scene),fail);
+    }else if(extension==='glb'){
+     new GLTFLoader(manager).load(url,gltf=>done(gltf.scene),onProgress,fail);
+    }else if(extension==='fbx'){
+     new FBXLoader(manager).load(url,done,onProgress,fail);
+    }else if(extension==='obj'){
+     new OBJLoader(manager).load(url,done,onProgress,fail);
+    }else if(extension==='stl'||extension==='ply'){
+     const loader=extension==='stl'?new STLLoader(manager):new PLYLoader(manager);
+     loader.load(url,geometry=>{
+      if(extension==='ply'&&geometry.hasAttribute('color')){
+       done(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true})));
+      }else{
+       if(!geometry.getAttribute('normal'))geometry.computeVertexNormals();
+       done(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:0x9aaec8,metalness:.25,roughness:.55})));
+      }
+     },onProgress,fail);
+    }else if(extension==='dae'){
+     new ColladaLoader(manager).load(url,collada=>done(collada.scene),onProgress,fail);
+    }else if(extension==='usdz'){
+     new USDZLoader(manager).load(url,done,onProgress,fail);
+    }else if(extension==='3mf'){
+     new ThreeMFLoader(manager).load(url,done,onProgress,fail);
+    }else{
+     fail(new Error('Unsupported 3D file format: .'+extension));
+    }
+   }catch(error){
+    fail(error);
+   }
+  };
+  load();
+  return()=>{
+   cancelled=true;
+   URL.revokeObjectURL(url);
+  };
+ },[file,onLoaded,onLoadProgress]);
 
  return <div ref={host} style={{position:'absolute',inset:0}}>{error&&<div className="loaderror">{error}</div>}</div>;
 });
