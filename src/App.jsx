@@ -53,7 +53,7 @@ export default function App(){
   fetch('/api/v1/auth/status',{cache:'no-store'})
    .then(response=>{if(!response.ok)throw new Error('Authentication status unavailable');return response.json()})
    .then(data=>{if(active)setAuth({checking:false,required:Boolean(data.required),authenticated:Boolean(data.authenticated)})})
-   .catch(()=>{if(active)setAuth({checking:false,required:false,authenticated:false})});
+   .catch(()=>{if(active){setAuth({checking:false,required:true,authenticated:false});setAuthError('Could not verify workspace access. Check the connection and try again.')}});
   return()=>{active=false};
  },[]);
 
@@ -108,10 +108,11 @@ export default function App(){
    setMessages(current=>[...current,{role:'assistant',text:'Unsupported extension: .'+extension+'. Supported formats: '+formats.join(', ')}].slice(-80));
    return;
   }
-  const maxModelBytes=150*1024*1024;
+  const mobileDevice=window.matchMedia('(max-width: 680px)').matches;
+  const maxModelBytes=(mobileDevice?75:150)*1024*1024;
   if(selectedFile.size>maxModelBytes){
    setLoadProgress(null);
-   setMessages(current=>[...current,{role:'assistant',text:'This model is larger than 150 MB. For a smoother mobile experience, reduce the model size or export an optimized GLB.'}].slice(-80));
+   setMessages(current=>[...current,{role:'assistant',text:'This model is larger than '+(mobileDevice?'75':'150')+' MB. For a smoother experience, reduce the model size, resize large textures or export an optimized GLB.'}].slice(-80));
    return;
   }
   viewerRef.current?.clearScene();
