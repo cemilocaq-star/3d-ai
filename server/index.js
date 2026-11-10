@@ -15,11 +15,19 @@ const providerApiKey = process.env.NOVA_PROVIDER_API_KEY || process.env.OPENAI_A
 const providerModel = process.env.NOVA_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const providerBaseUrl = process.env.NOVA_PROVIDER_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
 
+function isLoopbackProvider(baseUrl) {
+  try {
+    const url = new URL(baseUrl);
+    return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function resolveChatEndpoint(baseUrl) {
   try {
     const url = new URL(baseUrl);
-    const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-    if (url.protocol !== 'https:' && !localHttp) return null;
+    if (url.protocol !== 'https:' && !isLoopbackProvider(baseUrl)) return null;
     if (url.username || url.password) return null;
     return url.toString().replace(/\/+$/, '') + '/chat/completions';
   } catch {
@@ -27,8 +35,9 @@ function resolveChatEndpoint(baseUrl) {
   }
 }
 
+const localProvider = isLoopbackProvider(providerBaseUrl);
 const providerEndpoint = resolveChatEndpoint(providerBaseUrl);
-const configured = Boolean(providerApiKey && providerEndpoint);
+const configured = Boolean(providerEndpoint && (providerApiKey || localProvider));
 const appPassword = process.env.NOVA_APP_PASSWORD || '';
 const sessionSecret = process.env.NOVA_SESSION_SECRET || appPassword;
 const sessionLifetimeSeconds = 7 * 24 * 60 * 60;
@@ -110,7 +119,7 @@ function healthResponse(_req, res) {
     name: 'Nova API',
     apiVersion: 'v1',
     configured,
-    provider: configured ? 'OpenAI-compatible' : null,
+    provider: configured ? (localProvider && !providerApiKey ? 'Local OpenAI-compatible' : 'OpenAI-compatible') : null,
     model: configured ? providerModel : null,
     capabilities: ['multi-turn-chat', 'conversation-context', 'asset-metadata', 'safe-scene-edits'],
     authRequired: Boolean(appPassword),
@@ -336,7 +345,7 @@ app.post(['/api/v1/chat', '/api/chat'], requireAppAuth, rateLimit, async (req, r
     const upstream = await fetch(providerEndpoint, {
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + providerApiKey,
+        ...(providerApiKey ? { Authorization: 'Bearer ' + providerApiKey } : {}),
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
