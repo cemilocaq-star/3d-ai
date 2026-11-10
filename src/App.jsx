@@ -28,7 +28,8 @@ export default function App(){
  const [busy,setBusy]=useState(false);
  const [dragging,setDragging]=useState(false);
  const [stats,setStats]=useState(null);
- const [selectedMeshId,setSelectedMeshId]=useState(null);
+ const [selectedMeshIds,setSelectedMeshIds]=useState([]);
+ const selectedMeshId=selectedMeshIds[selectedMeshIds.length-1]||null;
  const [gridOn,setGridOn]=useState(true);
  const [apiReady,setApiReady]=useState(false);
 
@@ -46,8 +47,28 @@ export default function App(){
 
  const handleLoaded=useCallback(nextStats=>{
   setStats(nextStats);
-  setSelectedMeshId(current=>nextStats?.meshDetails?.some(mesh=>mesh.id===current)?current:null);
+  setSelectedMeshIds(current=>current.filter(id=>nextStats?.hierarchy?.some(node=>node.id===id&&node.kind==='Mesh')));
  },[]);
+ const updateSelection=(ids,event)=>{
+  const unique=[...new Set(ids)];
+  if(event?.ctrlKey||event?.metaKey||event?.shiftKey){
+   setSelectedMeshIds(current=>{
+    const next=new Set(current);
+    unique.forEach(id=>next.has(id)?next.delete(id):next.add(id));
+    return [...next];
+   });
+  }else setSelectedMeshIds(unique);
+ };
+ const selectMesh=(id,event)=>{
+  if(!viewerRef.current?.selectMesh(id))return;
+  updateSelection([id],event);
+ };
+ const selectHierarchyNode=(node,event)=>{
+  const ids=node.kind==='Mesh'?[node.id]:(viewerRef.current?.getDescendantMeshIds(node.id)||[]);
+  if(!ids.length)return;
+  viewerRef.current?.selectMeshes(ids);
+  updateSelection(ids,event);
+ };
  const acceptFile=selectedFile=>{
   if(!selectedFile)return;
   const extension=selectedFile.name.split('.').pop().toLowerCase();
@@ -93,7 +114,8 @@ export default function App(){
      messages:conversation.map(item=>({role:item.role,content:item.text})),
      mode:model,
      asset,
-     selectedMeshId
+     selectedMeshId,
+     selectedMeshIds
     })
    });
    const data=await response.json().catch(()=>({}));
@@ -150,7 +172,7 @@ export default function App(){
      </div>
      <div className={'view '+(dragging?'dragging':'')} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget))setDragging(false)}} onDrop={onDrop}>
       <ModelViewer ref={viewerRef} key={file?.name||'empty'} file={file} onLoaded={handleLoaded}/>
-      {stats&&<><div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>{stats.meshDetails?.length>0&&<details className="mesh-inspector"><summary>Mesh inspection · {stats.meshDetails.length}{stats.meshes>stats.meshDetails.length?' of '+stats.meshes:''}</summary><div className="mesh-list">{stats.meshDetails.map((mesh,index)=><div className={'mesh-row '+(selectedMeshId===mesh.id?'selected':'')} key={mesh.id||index} role="button" tabIndex={0} aria-pressed={selectedMeshId===mesh.id} onClick={()=>{if(viewerRef.current?.selectMesh(mesh.id))setSelectedMeshId(mesh.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(viewerRef.current?.selectMesh(mesh.id))setSelectedMeshId(mesh.id)}}}><div className="mesh-row-head"><b>{mesh.name}</b><button className="visibility-toggle" onClick={event=>{event.stopPropagation();const visible=viewerRef.current?.toggleMeshVisibility(mesh.id);if(visible!==null&&visible!==undefined)setStats(current=>current?{...current,meshDetails:current.meshDetails.map(item=>item.id===mesh.id?{...item,visible}:item)}:current)}}>{mesh.visible?'Hide':'Show'}</button></div><span>{mesh.geometryType} · {mesh.vertices.toLocaleString()} vertices · {mesh.triangles.toLocaleString()} triangles</span><span>{mesh.dimensions?[mesh.dimensions.x,mesh.dimensions.y,mesh.dimensions.z].join(' × ')+' units':''}</span><span>{[mesh.hasUV?'UV':'',mesh.hasNormals?'Normals':'',mesh.hasVertexColors?'Vertex colors':'',mesh.hasSkinning?'Skinned':'',mesh.morphTargets?'Morph targets':''].filter(Boolean).join(' · ')||'No UV/normal/skin/morph flags detected'}</span>{mesh.materials?.length>0&&<span>Materials: {mesh.materials.join(', ')}</span>}{mesh.materialColors?.length>0&&<span className="swatches">{mesh.materialColors.map(color=><i key={color} title={color} style={{backgroundColor:color}}/>)} <small>{mesh.materialColors.join(' ')}</small></span>}</div>)}</div><details className="hierarchy-tree"><summary>Scene hierarchy · {stats.hierarchy?.length||0}{stats.hierarchy?.length>=200?' (first 200)':''}</summary><div className="hierarchy-list">{(stats.hierarchy||[]).map(node=><div key={node.id} className={'hierarchy-node '+(node.kind==='Mesh'?'mesh-node':'group-node')+(selectedMeshId===node.id?' selected':'')} style={{paddingLeft:8+node.depth*12}}>{node.kind==='Mesh'?<button className="hierarchy-select" onClick={()=>{if(viewerRef.current?.selectMesh(node.id))setSelectedMeshId(node.id)}} aria-pressed={selectedMeshId===node.id}><span className="hierarchy-kind">◈</span><span>{node.name}</span></button>:<span className="hierarchy-group"><span className="hierarchy-kind">▸</span>{node.name} <small>{node.kind}</small></span>}<span className="hierarchy-visibility">{node.visible?'Visible':'Hidden'}</span></div>)}</div></details></details>}</>}
+      {stats&&<><div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>{stats.meshDetails?.length>0&&<details className="mesh-inspector"><summary>Mesh inspection · {stats.meshDetails.length}{stats.meshes>stats.meshDetails.length?' of '+stats.meshes:''}</summary><div className="mesh-list">{stats.meshDetails.map((mesh,index)=><div className={'mesh-row '+(selectedMeshIds.includes(mesh.id)?'selected':'')} key={mesh.id||index} role="button" tabIndex={0} aria-pressed={selectedMeshIds.includes(mesh.id)} onClick={event=>selectMesh(mesh.id,event)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();selectMesh(mesh.id,event)}}}><div className="mesh-row-head"><b>{mesh.name}</b><button className="visibility-toggle" onClick={event=>{event.stopPropagation();const visible=viewerRef.current?.toggleMeshVisibility(mesh.id);if(visible!==null&&visible!==undefined)setStats(current=>current?{...current,meshDetails:current.meshDetails.map(item=>item.id===mesh.id?{...item,visible}:item)}:current)}}>{mesh.visible?'Hide':'Show'}</button></div><span>{mesh.geometryType} · {mesh.vertices.toLocaleString()} vertices · {mesh.triangles.toLocaleString()} triangles</span><span>{mesh.dimensions?[mesh.dimensions.x,mesh.dimensions.y,mesh.dimensions.z].join(' × ')+' units':''}</span><span>{[mesh.hasUV?'UV':'',mesh.hasNormals?'Normals':'',mesh.hasVertexColors?'Vertex colors':'',mesh.hasSkinning?'Skinned':'',mesh.morphTargets?'Morph targets':''].filter(Boolean).join(' · ')||'No UV/normal/skin/morph flags detected'}</span>{mesh.materials?.length>0&&<span>Materials: {mesh.materials.join(', ')}</span>}{mesh.materialColors?.length>0&&<span className="swatches">{mesh.materialColors.map(color=><i key={color} title={color} style={{backgroundColor:color}}/>)} <small>{mesh.materialColors.join(' ')}</small></span>}</div>)}</div><details className="hierarchy-tree"><summary>Scene hierarchy · {stats.hierarchy?.length||0}{stats.hierarchy?.length>=200?' (first 200)':''} · {selectedMeshIds.length} selected</summary><div className="hierarchy-list">{(stats.hierarchy||[]).map(node=><div key={node.id} className={'hierarchy-node '+(node.kind==='Mesh'?'mesh-node':'group-node')+(selectedMeshIds.includes(node.id)?' selected':'')} style={{paddingLeft:8+node.depth*12}}>{node.kind==='Mesh'?<button className="hierarchy-select" onClick={event=>selectHierarchyNode(node,event)} aria-pressed={selectedMeshIds.includes(node.id)}><span className="hierarchy-kind">◈</span><span>{node.name}</span></button>:<button className="hierarchy-group" onClick={event=>selectHierarchyNode(node,event)}><span className="hierarchy-kind">▸</span>{node.name} <small>{node.kind}</small></button>}<span className="hierarchy-visibility">{node.visible?'Visible':'Hidden'}</span></div>)}</div></details></details>}</>}
       {dragging&&<div className="dropcover">Drop your 3D file to import</div>}
       {!file&&!stats&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
      </div>
