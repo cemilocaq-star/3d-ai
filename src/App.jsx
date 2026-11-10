@@ -1,7 +1,7 @@
 import React,{useState} from 'react';
 import {Box,Plus,Upload,MessageSquare,Settings,Send,Sparkles,PanelLeft,Download,RotateCcw,Layers,ChevronDown,FileBox} from 'lucide-react';
 import ModelViewer from './ModelViewer.jsx';
-const formats=['glb','gltf','fbx','obj','stl','ply','3mf','dae','3ds','wrl','vtk','xyz','pcd','off','usdz'];
+const formats=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
 export default function App(){
  const [file,setFile]=useState(null),[messages,setMessages]=useState([{role:'assistant',text:'Welcome to Nova 3D AI Studio. Upload a 3D asset to inspect it, or describe what you want to create. AI generation will connect when a provider key is configured.'}]),[prompt,setPrompt]=useState(''),[model,setModel]=useState('Nova Vision'),[busy,setBusy]=useState(false);
  const supported=['glb','gltf','fbx','obj','stl','ply','3mf','dae','usdz'];
