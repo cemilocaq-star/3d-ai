@@ -15,7 +15,7 @@ export function buildPromptModel(prompt){
   sphere('Left eye',-.19,2.51,.415,.075,.075,.045,0x55d6d0);sphere('Right eye',.19,2.51,.415,.075,.075,.045,0x55d6d0);
   cyl('Antenna',.27,2.98,0,.035,.035,.28,0xe5a85b,8);sphere('Antenna tip',.27,3.14,0,.09,.09,.09,0xe5a85b);
   for(const d of [-1,1]){cyl('Shoulder',d*.72,1.72,0,.22,.22,.24,0x26364b).rotation.z=Math.PI/2;box('Upper arm',d*.83,1.32,0,.25,.66,.28,0x8298b2);sphere('Elbow',d*.83,.94,0,.16,.16,.16,0xe5a85b);box('Forearm',d*.83,.68,.02,.3,.45,.32,0x26364b);box('Leg',d*.29,.28,0,.34,.62,.38,0x8298b2);box('Foot',d*.29,-.06,.13,.42,.2,.62,0x26364b)}
- }else if(/house|home|ev|villa|cabin|дом/.test(q)){
+ }else if(/house|home|villa|cabin|дом/.test(q)||q.split(/\\s+/).includes('ev')){
   type='modern house';box('Walls',0,.9,0,2.2,1.8,1.8,0xe4d9c4);
   const roof=new THREE.Mesh(new THREE.ConeGeometry(1.65,.9,4),mat(0x9d5548));roof.name='Roof';roof.position.set(0,2.23,0);roof.rotation.y=Math.PI/4;root.add(roof);
   box('Door',0,.55,.92,.48,1.05,.08,0x654532);sphere('Door knob',.16,.56,1,.045,.045,.045,0xe4b95f);
