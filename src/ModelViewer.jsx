@@ -33,7 +33,7 @@ function findObjectByName(root,name){
  return match;
 }
 function applySceneActions(root,actions){
- if(!root)return [];
+ if(!root)return (Array.isArray(actions)?actions:[]).map(action=>({type:action.type,ok:false,reason:'No model is loaded'}));
  const results=[];
  for(const action of Array.isArray(actions)?actions:[]){
   let target=null;
