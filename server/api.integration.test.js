@@ -140,7 +140,7 @@ test('rejects incorrect passwords and creates a signed HttpOnly session for a va
   const status = await fetch(apiUrl + '/api/v1/auth/status', { headers: { Cookie: apiCookie } });
   const authenticated = await status.json();
   assert.equal(authenticated.authenticated, true);
-  const tamperedCookie = apiCookie.replace(/\\.[^.]+$/, '.invalid-signature');
+  const tamperedCookie = apiCookie.replace(/\.[^.]+$/, '.invalid-signature');
   const rejectedSession = await fetch(apiUrl + '/api/v1/auth/status', { headers: { Cookie: tamperedCookie } });
   const rejectedData = await rejectedSession.json();
   assert.equal(rejectedData.authenticated, false);
