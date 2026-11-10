@@ -17,5 +17,6 @@ jobs:
       - run: node --check server/rate-limit.js
       - run: node --check server/asset-metadata.js
       - run: node --check server/chat-input.js
+      - run: node --check server/scene-actions.js
       - run: npm test
       - run: npm run build
