@@ -51,18 +51,11 @@ export default function App(){
  },[]);
  const updateSelection=(ids,event)=>{
   const unique=[...new Set(ids)].slice(0,20);
-  if(event?.ctrlKey||event?.metaKey||event?.shiftKey){
-   setSelectedMeshIds(current=>{
-    const next=new Set(current);
-    unique.forEach(id=>next.has(id)?next.delete(id):next.add(id));
-    const selected=[...next].slice(0,20);
-    viewerRef.current?.selectMeshes(selected);
-    return selected;
-   });
-  }else{
-   viewerRef.current?.selectMeshes(unique);
-   setSelectedMeshIds(unique);
-  }
+  const selection=new Set(event?.ctrlKey||event?.metaKey||event?.shiftKey?selectedMeshIds:[]);
+  unique.forEach(id=>selection.has(id)?selection.delete(id):selection.add(id));
+  const selected=[...selection].slice(0,20);
+  viewerRef.current?.selectMeshes(selected);
+  setSelectedMeshIds(selected);
  };
  const selectMesh=(id,event)=>{
   if(!viewerRef.current?.selectMesh(id))return;
