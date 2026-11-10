@@ -188,19 +188,22 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const light=new THREE.DirectionalLight(0xffffff,2.5);
   light.position.set(4,7,5);
   scene.add(light);
-  let frame;
+  let frame=0,running=false,elementVisible=true;
   const grid=new THREE.GridHelper(12,24,0x344158,0x202b3b);
   scene.add(grid);
   const resize=()=>{
-   const width=element.clientWidth||1,height=element.clientHeight||1;
+   const width=element.clientWidth,height=element.clientHeight;
+   if(!width||!height)return;
+   const pixelRatio=Math.min(window.devicePixelRatio||1,window.matchMedia('(max-width: 680px)').matches?1.5:2);
+   if(renderer.getPixelRatio()!==pixelRatio)renderer.setPixelRatio(pixelRatio);
    camera.aspect=width/height;
    camera.updateProjectionMatrix();
    renderer.setSize(width,height);
   };
   const observer=new ResizeObserver(resize);
   observer.observe(element);
-  resize();
   const animate=()=>{
+   if(!running)return;
    frame=requestAnimationFrame(animate);
    controls.update();
    const visibleSelected=selectedMeshes.filter(mesh=>{
@@ -216,7 +219,23 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    }else selectionBox.visible=false;
    renderer.render(scene,camera);
   };
-  animate();
+  const syncRendering=()=>{
+   const shouldRun=!document.hidden&&elementVisible;
+   if(shouldRun&&!running){running=true;resize();animate()}
+   else if(!shouldRun&&running){running=false;cancelAnimationFrame(frame);frame=0}
+  };
+  const onVisibilityChange=()=>syncRendering();
+  document.addEventListener('visibilitychange',onVisibilityChange);
+  let intersectionObserver=null;
+  if(typeof IntersectionObserver!=='undefined'){
+   intersectionObserver=new IntersectionObserver(entries=>{
+    elementVisible=Boolean(entries[0]?.isIntersecting);
+    syncRendering();
+   },{threshold:0.01});
+   intersectionObserver.observe(element);
+  }
+  resize();
+  syncRendering();
   state.current={
    grid,current:null,scene,
    clear:()=>{
@@ -253,7 +272,10 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    }
   };
   return()=>{
+   running=false;
    cancelAnimationFrame(frame);
+   document.removeEventListener('visibilitychange',onVisibilityChange);
+   intersectionObserver?.disconnect();
    observer.disconnect();
    controls.dispose();
    const loaded=state.current.current;
