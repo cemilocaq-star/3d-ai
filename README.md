@@ -14,7 +14,9 @@ The Vite development server proxies `/api` requests to the API on port 8787. For
 - `OPENAI_API_KEY` is read only by the server. Never put it in a `VITE_*` variable or browser code.
 - `OPENAI_MODEL` optionally selects the chat model; the default is `gpt-4o-mini`.
 - `GET /api/health` reports whether a key is configured without exposing the key.
-- `POST /api/chat` provides server-side AI chat. Requests are size-limited and time out after 45 seconds.
+- `POST /api/chat` provides server-side AI chat. Requests are size-limited, limited to 20 requests per IP per minute, and use a 45-second upstream timeout.
+
+The in-memory rate limiter is suitable for a single server process. A multi-instance deployment should use a shared rate-limit store so limits apply across instances.
 
 ## Current implementation
 - Interactive Three.js viewport with orbit, pan, zoom, automatic framing and grid visibility control.
@@ -22,8 +24,9 @@ The Vite development server proxies `/api` requests to the API on port 8787. For
 - Basic mesh, vertex and triangle statistics.
 - Export the currently loaded scene as binary GLB.
 - Responsive studio layout and assistant chat interface.
-- Optional OpenAI chat backend with server-only API key handling and a health-status endpoint.
-- GitHub Actions workflow configured to run `npm install` and `npm run build`.
+- Optional OpenAI chat backend with server-only API key handling, a health-status endpoint, request rate limiting and upstream timeout.
+- Backend unit tests for rate-limit enforcement, window reset, client isolation and invalid configuration.
+- GitHub Actions runs backend syntax checks, backend tests and the production frontend build.
 
 ## Known limitations
 - Text-to-3D generation and AI-driven geometry/material editing are not implemented.
