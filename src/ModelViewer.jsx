@@ -209,6 +209,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{},onLoadPr
   try{
    renderer=new THREE.WebGLRenderer({antialias:!mobileViewport,alpha:false,powerPreference:'high-performance'});
   }catch{
+   disposeObject(scene);
    setError('This browser could not start WebGL. Try a browser with hardware acceleration enabled or a newer device.');
    return ()=>{};
   }
