@@ -60,7 +60,7 @@ The chat endpoint is limited to 20 requests per IP per minute and has a 45-secon
 
 ## Tests and build
 
-`npm test` runs backend tests. `npm run build` creates the production frontend build. GitHub Actions checks server syntax, runs tests and builds the frontend.
+`npm test` runs unit tests plus an end-to-end API test that starts Nova against a local mock provider and checks health, multi-turn chat forwarding and input validation. `npm run build` creates the production frontend build. GitHub Actions checks server syntax, runs tests and builds the frontend.
 
 ## Known limitations
 
