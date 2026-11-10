@@ -52,7 +52,7 @@ The chat endpoint is limited to 20 requests per IP per minute and has a 45-secon
 
 - Interactive Three.js viewport with orbit, pan, zoom, automatic framing and grid visibility.
 - Import by file picker and drag-and-drop for GLB/GLTF, FBX, OBJ, STL, PLY, 3MF, Collada/DAE and USDZ.
-- Inspect mesh, vertex, triangle, material and texture counts; scene bounds/dimensions; and a bounded summary of individual meshes.
+- Inspect mesh, vertex, triangle, material and texture counts; scene bounds/dimensions; and bounded per-mesh geometry attributes including UVs, normals, vertex colors, skinning, morph targets, geometry types and material base colors. A compact mesh inspector is available in the viewport.
 - Export the currently loaded scene as binary GLB.
 - Nova can issue validated scene edits through its function-calling interface: rename an object, change a material color, adjust local position/rotation/scale, add a box/sphere/cylinder/torus primitive, or delete a non-root object.
 - Nova can start a new empty-canvas scene by adding primitives and combine them into simple compositions; these are basic geometric assemblies, not arbitrary high-detail text-to-3D meshes.
