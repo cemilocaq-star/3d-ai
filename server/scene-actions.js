@@ -19,6 +19,12 @@ function vector(input, { min = -10000, max = 10000, positive = false } = {}) {
   return result;
 }
 
+function normalizeObjectIds(value) {
+  if (!Array.isArray(value)) return null;
+  const ids = [...new Set(value.filter(id => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)))].slice(0, 20);
+  return ids.length ? ids : null;
+}
+
 function color(value) {
   return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : null;
 }
@@ -36,11 +42,13 @@ export function normalizeSceneActions(input) {
       const name = safeName(item.name);
       if ((objectName || objectId) && name) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), name });
     } else if (item.type === 'set_material_color') {
+      const objectIds = normalizeObjectIds(item.objectIds);
       const objectName = safeName(item.objectName);
       const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
       const nextColor = color(item.color);
-      if ((objectName || objectId) && nextColor) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), color: nextColor });
+      if ((objectName || objectId || objectIds?.length) && nextColor) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(objectIds && { objectIds }), color: nextColor });
     } else if (item.type === 'set_transform') {
+      const objectIds = normalizeObjectIds(item.objectIds);
       const objectName = safeName(item.objectName);
       const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
       const position = item.position === undefined ? null : vector(item.position);
@@ -48,8 +56,8 @@ export function normalizeSceneActions(input) {
       const scale = item.scale === undefined ? null : vector(item.scale, { min: 0.01, max: 100, positive: true });
       const suppliedFields = ['position', 'rotation', 'scale'].filter(key => item[key] !== undefined);
       const validFields = suppliedFields.every(key => ({ position, rotation, scale })[key] !== null);
-      if ((objectName || objectId) && suppliedFields.length > 0 && validFields) {
-        actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(position && { position }), ...(rotation && { rotation }), ...(scale && { scale }) });
+      if ((objectName || objectId || objectIds?.length) && suppliedFields.length > 0 && validFields) {
+        actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(objectIds && { objectIds }), ...(position && { position }), ...(rotation && { rotation }), ...(scale && { scale }) });
       }
     } else if (item.type === 'add_primitive') {
       const name = safeName(item.name);
@@ -61,9 +69,10 @@ export function normalizeSceneActions(input) {
         actions.push({ type: item.type, primitive, name, color: nextColor, position, scale });
       }
     } else if (item.type === 'delete_object') {
+      const objectIds = normalizeObjectIds(item.objectIds);
       const objectName = safeName(item.objectName);
       const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
-      if (objectName || objectId) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }) });
+      if (objectName || objectId || objectIds?.length) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(objectIds && { objectIds }) });
     }
   }
 
