@@ -65,6 +65,7 @@ export default function App(){
   acceptFile(event.dataTransfer.files?.[0]);
  };
  const newProject=()=>{
+  viewerRef.current?.clearScene();
   setFile(null);
   setStats(null);
   setPrompt('');
@@ -98,7 +99,7 @@ export default function App(){
     const failed=outcomes.length-applied;
     let confirmation=applied
      ? 'Applied '+applied+' of '+actions.length+' requested scene change(s) in the viewport.'
-     : 'I could not apply the requested scene changes. Import a model first and check that the target object names match.';
+     : 'I could not apply the requested scene changes. Check that the target object names match.';
     if(failed&&applied)confirmation+=' '+failed+' change(s) could not be applied.';
     if(applied===actions.length&&typeof data.reply==='string'&&data.reply.trim())confirmation+='\\n\\n'+data.reply.trim();
     setMessages(current=>[...current,{role:'assistant',text:confirmation}].slice(-80));
@@ -134,18 +135,18 @@ export default function App(){
    <div className="workspace">
     <section className="viewportPanel">
      <div className="paneltop">
-      <div><b>3D VIEWPORT</b><small>{file?file.name:'No asset loaded'}</small></div>
+      <div><b>3D VIEWPORT</b><small>{file?file.name:stats?'AI-generated scene':'No asset loaded'}</small></div>
       <div className="tools">
        <label className="toolbtn"><Upload size={15}/> Import<input id="nova-file-input" type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label>
        <button className="toolbtn" onClick={()=>setGridOn(viewerRef.current?.toggleGrid()??gridOn)}><Layers size={15}/> Grid {gridOn?'On':'Off'}</button>
-       <button className="toolbtn" onClick={()=>{setFile(null);setStats(null)}}><RotateCcw size={15}/> Clear</button>
+       <button className="toolbtn" onClick={()=>{viewerRef.current?.clearScene();setFile(null);setStats(null)}}><RotateCcw size={15}/> Clear</button>
       </div>
      </div>
      <div className={'view '+(dragging?'dragging':'')} onDragOver={event=>{event.preventDefault();setDragging(true)}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget))setDragging(false)}} onDrop={onDrop}>
       <ModelViewer ref={viewerRef} key={file?.name||'empty'} file={file} onLoaded={setStats}/>
-      {file&&stats&&<div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>}
+      {stats&&<div className="modelstats">{stats.meshes} meshes · {stats.vertices.toLocaleString()} vertices · {stats.triangles.toLocaleString()} triangles · {stats.materials||0} materials · {stats.textures||0} textures{stats.dimensions?' · '+stats.dimensions.x+' × '+stats.dimensions.y+' × '+stats.dimensions.z+' units':''}</div>}
       {dragging&&<div className="dropcover">Drop your 3D file to import</div>}
-      {!file&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
+      {!file&&!stats&&<div className="empty"><div className="cube"><Box size={34}/></div><b>Your 3D canvas is ready</b><p>Import a model to inspect its structure in the interactive viewport.</p><label className="primary"><Upload size={16}/> Upload 3D file<input type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label><small>GLB · GLTF · FBX · OBJ · STL · PLY · 3MF · DAE · USDZ</small></div>}
      </div>
      <div className="viewfoot"><span><span className="dot"/> REAL-TIME VIEWPORT</span><span>Orbit · Pan · Zoom</span></div>
     </section>
