@@ -52,3 +52,15 @@ test('accepts bounded UUID arrays for bulk mesh edits and rejects malformed entr
     { type: 'delete_object', objectIds: ['not-a-uuid'] }
   ]), [{ type: 'set_material_color', objectIds: ids, color: '#abcdef' }]);
 });
+
+test('accepts bounded material roughness and metallic edits for selected meshes', () => {
+  const ids = ['12345678-1234-1234-1234-123456789abc', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'];
+  assert.deepEqual(normalizeSceneActions([
+    { type: 'set_material_properties', objectIds: ids, color: '#AABBCC', roughness: 0.2, metalness: 0.8 },
+    { type: 'set_material_properties', objectName: 'Invalid', roughness: 1.1 },
+    { type: 'set_material_properties', objectName: 'Invalid', metalness: -0.1 },
+    { type: 'set_material_properties', objectName: 'Invalid', roughness: '0.4' }
+  ]), [{
+    type: 'set_material_properties', objectIds: ids, color: '#aabbcc', roughness: 0.2, metalness: 0.8
+  }]);
+});
