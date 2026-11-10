@@ -69,6 +69,19 @@ function applySceneActions(root,actions){
    if(!editable.length){results.push({type:action.type,ok:false,reason:'Object has no editable color material'});continue}
    editable.forEach(material=>{material.color.set(action.color);material.needsUpdate=true});
    results.push({type:action.type,ok:true,name:target.name});
+  }else if(action.type==='set_material_properties'){
+   const list=Array.isArray(target.material)?target.material:[target.material];
+   const editable=list.filter(material=>material);
+   if(!editable.length){results.push({type:action.type,ok:false,reason:'Object has no editable material'});continue}
+   const next=editable.map(material=>material.clone());
+   next.forEach(material=>{
+    if(action.color&&material.color?.set)material.color.set(action.color);
+    if(Number.isFinite(action.roughness)&&'roughness' in material)material.roughness=action.roughness;
+    if(Number.isFinite(action.metalness)&&'metalness' in material)material.metalness=action.metalness;
+    material.needsUpdate=true;
+   });
+   target.material=Array.isArray(target.material)?next:next[0];
+   results.push({type:action.type,ok:true,name:target.name});
   }else if(action.type==='set_transform'){
    if(action.position)target.position.set(action.position.x,action.position.y,action.position.z);
    if(action.rotation)target.rotation.set(
@@ -251,6 +264,53 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
  },[onLoaded]);
 
  useImperativeHandle(ref,()=>({
+  applyMaterialProperties(properties){
+   const root=state.current.current;
+   if(!root||!selectedMeshes.length)return {ok:false,reason:'Select at least one mesh first'};
+   let changed=0;
+   selectedMeshes.forEach(mesh=>{
+    if(!mesh.material)return;
+    const list=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+    const next=list.map(material=>{
+     const copy=material.clone();
+     if(properties.color&&copy.color?.set)copy.color.set(properties.color);
+     if(Number.isFinite(properties.roughness)&&'roughness' in copy)copy.roughness=THREE.MathUtils.clamp(properties.roughness,0,1);
+     if(Number.isFinite(properties.metalness)&&'metalness' in copy)copy.metalness=THREE.MathUtils.clamp(properties.metalness,0,1);
+     copy.needsUpdate=true;
+     return copy;
+    });
+    mesh.material=Array.isArray(mesh.material)?next:next[0];
+    changed++;
+   });
+   if(changed)onLoaded(measure(root));
+   return {ok:changed>0,changed};
+  },
+  async applyTexture(file){
+   const root=state.current.current;
+   if(!root||!selectedMeshes.length||!file)return {ok:false,reason:'Select a mesh and an image first'};
+   const eligible=selectedMeshes.filter(mesh=>mesh.geometry?.attributes?.uv);
+   if(!eligible.length)return {ok:false,reason:'Selected meshes have no UV coordinates'};
+   const url=URL.createObjectURL(file);
+   try{
+    const texture=await new THREE.TextureLoader().loadAsync(url);
+    texture.colorSpace=THREE.SRGBColorSpace;
+    texture.needsUpdate=true;
+    eligible.forEach(mesh=>{
+     const source=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+     const next=source.map(material=>{
+      const copy=material.clone();
+      copy.map=texture;
+      copy.needsUpdate=true;
+      return copy;
+     });
+     mesh.material=Array.isArray(mesh.material)?next:next[0];
+    });
+    onLoaded(measure(root));
+    return {ok:true,changed:eligible.length};
+   }catch{
+    return {ok:false,reason:'The selected image could not be loaded'};
+   }finally{URL.revokeObjectURL(url)}
+  },
   toggleGrid(){
    if(!state.current.grid)return false;
    state.current.grid.visible=!state.current.grid.visible;
