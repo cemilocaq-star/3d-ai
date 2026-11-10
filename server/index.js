@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRateLimiter } from './rate-limit.js';
 import { normalizeAssetMetadata } from './asset-metadata.js';
 import { normalizeChatMessages } from './chat-input.js';
@@ -276,6 +279,17 @@ app.post(['/api/v1/chat', '/api/chat'], rateLimit, async (req, res) => {
     });
   }
 });
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const frontendDirectory = path.join(projectRoot, 'dist');
+if (existsSync(path.join(frontendDirectory, 'index.html'))) {
+  app.use(express.static(frontendDirectory, { index: false, fallthrough: true, maxAge: '1h' }));
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req, res, next) => {
+    res.sendFile(path.join(frontendDirectory, 'index.html'), error => {
+      if (error) next(error);
+    });
+  });
+}
 
 app.listen(port, '0.0.0.0', () => {
   console.log('Nova API v1 listening on port ' + port);
