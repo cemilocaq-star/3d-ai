@@ -35,6 +35,7 @@ export default function App(){
  const [materialMessage,setMaterialMessage]=useState('');
  const selectedMeshId=selectedMeshIds[selectedMeshIds.length-1]||null;
  const [gridOn,setGridOn]=useState(true);
+ const [multiSelectEnabled,setMultiSelectEnabled]=useState(false);
  const [apiStatus,setApiStatus]=useState('checking');
  const [loadProgress,setLoadProgress]=useState(null);
  const [mobileTab,setMobileTab]=useState('studio');
@@ -61,7 +62,7 @@ export default function App(){
  },[]);
  const updateSelection=(ids,event)=>{
   const unique=[...new Set(ids)].slice(0,20);
-  const selection=new Set(event?.ctrlKey||event?.metaKey||event?.shiftKey?selectedMeshIds:[]);
+  const selection=new Set(multiSelectEnabled||event?.ctrlKey||event?.metaKey||event?.shiftKey?selectedMeshIds:[]);
   unique.forEach(id=>selection.has(id)?selection.delete(id):selection.add(id));
   const selected=[...selection].slice(0,20);
   viewerRef.current?.selectMeshes(selected);
@@ -84,15 +85,10 @@ export default function App(){
   const result=await viewerRef.current?.applyTexture(image);
   setMaterialMessage(result?.ok?'Texture applied to '+result.changed+' mesh(es).':result?.reason||'Texture could not be applied.');
  };
- const selectMesh=(id,event)=>{
-  if(!viewerRef.current?.selectMesh(id))return;
-  updateSelection([id],event);
- };
+ const selectMesh=(id,event)=>updateSelection([id],event);
  const selectHierarchyNode=(node,event)=>{
   const ids=node.kind==='Mesh'?[node.id]:(viewerRef.current?.getDescendantMeshIds(node.id)||[]);
-  if(!ids.length)return;
-  viewerRef.current?.selectMeshes(ids);
-  updateSelection(ids,event);
+  if(ids.length)updateSelection(ids,event);
  };
  const acceptFile=selectedFile=>{
   if(!selectedFile)return;
@@ -114,7 +110,7 @@ export default function App(){
   setMaterialMessage('');
   setLoadProgress({status:'loading',loaded:0,total:selectedFile.size,percent:0,phase:'Preparing model'});
   setMessages(current=>[...current,{role:'assistant',text:'Imported '+selectedFile.name+'. I can use its structural statistics in our conversation after the model finishes loading.'}].slice(-80));
- };;
+ };
 
  const upload=event=>{
   acceptFile(event.target.files?.[0]);
@@ -130,6 +126,7 @@ export default function App(){
   setFile(null);
   setStats(null);
   setSelectedMeshIds([]);
+  setMultiSelectEnabled(false);
   setMaterialMessage('');
   setLoadProgress(null);
  };
@@ -208,6 +205,7 @@ export default function App(){
       <div className="tools">
        <label className="toolbtn"><Upload size={15}/> Import<input id="nova-file-input" type="file" accept={formats.map(value=>'.'+value).join(',')} onChange={upload} hidden/></label>
        <button className="toolbtn" onClick={()=>setGridOn(viewerRef.current?.toggleGrid()??gridOn)}><Layers size={15}/> Grid {gridOn?'On':'Off'}</button>
+       <button className={'toolbtn '+(multiSelectEnabled?'active':'')} aria-pressed={multiSelectEnabled} onClick={()=>setMultiSelectEnabled(value=>!value)}><Layers size={15}/> Multi</button>
        <button className="toolbtn" onClick={clearAsset}><RotateCcw size={15}/> Clear</button>
       </div>
      </div>
@@ -221,7 +219,7 @@ export default function App(){
      <div className="viewfoot"><span><span className="dot"/> REAL-TIME VIEWPORT</span><span>Orbit · Pan · Zoom</span></div>
     </section>
     <aside className="assistant">
-     <div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>Conversational 3D copilot</small></div><button className="dots" onClick={newProject}>＋</button></div>
+     <div className="chathead"><div className="aiicon"><Sparkles size={17}/></div><div><b>Nova Assistant</b><small>3D copilot · {apiStatus==='ready'?'API ready':apiStatus==='unconfigured'?'provider key needed':apiStatus==='offline'?'API offline':'checking API'}</small></div><button className="dots" onClick={newProject}>＋</button></div>
      <div className="modelpick"><span>MODE</span><button onClick={()=>setModel(model==='Nova Studio'?'Nova Reasoner':'Nova Studio')}>{model}<ChevronDown size={14}/></button></div>
      <div className="messages">{messages.map((message,index)=><div className={'message '+message.role} key={index}><div className="msgavatar">{message.role==='assistant'?<Sparkles size={14}/>:'Y'}</div><div className="bubble">{message.text}</div></div>)}{busy&&<div className="typing">Nova is thinking…</div>}</div>
      <div className="suggestions"><button onClick={()=>setPrompt('Help me understand the structure of my 3D model.')}>Analyze my model</button><button onClick={()=>setPrompt('Give me ideas to improve this 3D asset.')}>Improve this asset</button></div>
