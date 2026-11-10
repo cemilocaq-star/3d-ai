@@ -84,6 +84,7 @@ app.post('/api/v1/auth/login', loginRateLimit, (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!appPassword) return res.status(409).json({ error: 'App password protection is not enabled on this server.' });
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (password.length > 256) return res.status(400).json({ error: 'The app password is too long.' });
   if (!password || !passwordMatches(password)) return res.status(401).json({ error: 'The app password is incorrect.' });
   const expiresAt = Math.floor(Date.now() / 1000) + sessionLifetimeSeconds;
   writeSessionCookie(req, res, createSessionToken(expiresAt));
