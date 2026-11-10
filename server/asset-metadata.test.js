@@ -8,8 +8,9 @@ test('normalizes base asset metadata and structural inspection', () => {
     format: 'GLB',
     stats: {
       meshes: 3, vertices: 1200, triangles: 800, materials: 2, textures: 1,
+      uvMeshes: null, normalMeshes: null, vertexColorMeshes: null, skinnedMeshes: null, morphMeshes: null,
       dimensions: { x: 2.5, y: 3, z: 1.25 },
-      meshDetails: [{ name: 'Body', vertices: 900, triangles: 600, dimensions: { x: 2, y: 3, z: 1 }, materials: ['Paint'] }]
+      meshDetails: [{ name: 'Body', vertices: 900, triangles: 600, dimensions: { x: 2, y: 3, z: 1 }, geometryType: null, hasUV: null, hasNormals: null, hasVertexColors: null, hasSkinning: null, morphTargets: null, materials: ['Paint'], materialColors: [] }]
     }
   }), {
     filename: 'robot.glb',
@@ -32,6 +33,7 @@ test('rejects unsupported format and invalid geometry counts', () => {
     format: null,
     stats: {
       meshes: null, vertices: null, triangles: null, materials: null, textures: null,
+      uvMeshes: null, normalMeshes: null, vertexColorMeshes: null, skinnedMeshes: null, morphMeshes: null,
       dimensions: null, meshDetails: []
     }
   });
