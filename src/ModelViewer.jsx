@@ -121,7 +121,9 @@ function measure(root){
   }
   if(meshDetails.length<20){
    meshDetails.push({
+    id:node.uuid,
     name:(node.name||'Mesh '+meshes).slice(0,80),
+    visible:node.visible,
     geometryType:geometry?.type||'BufferGeometry',
     vertices:vertexCount,triangles:triangleCount,
     dimensions:getDimensions(node),
@@ -144,6 +146,10 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const element=host.current;
   if(!element)return;
   const scene=new THREE.Scene();
+  const selectionBox=new THREE.Box3Helper(new THREE.Box3(),0x79b8ff);
+  selectionBox.visible=false;
+  scene.add(selectionBox);
+  let selectedMesh=null;
   scene.background=new THREE.Color('#0b101a');
   const camera=new THREE.PerspectiveCamera(45,1,.01,10000);
   camera.position.set(4,3,5);
@@ -172,6 +178,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const animate=()=>{
    frame=requestAnimationFrame(animate);
    controls.update();
+   if(selectedMesh?.visible){selectionBox.box.setFromObject(selectedMesh);selectionBox.visible=true;selectionBox.updateMatrixWorld(true)}else selectionBox.visible=false;
    renderer.render(scene,camera);
   };
   animate();
@@ -181,12 +188,16 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
     const loaded=state.current.current;
     if(loaded){scene.remove(loaded);disposeObject(loaded)}
     state.current.current=null;
+    selectedMesh=null;
+    selectionBox.visible=false;
     onLoaded(null);
    },
    load:object=>{
     const previous=state.current.current;
     if(previous){scene.remove(previous);disposeObject(previous)}
     state.current.current=object;
+    selectedMesh=null;
+    selectionBox.visible=false;
     scene.add(object);
     const bounds=new THREE.Box3().setFromObject(object);
     if(!bounds.isEmpty()){
@@ -221,6 +232,28 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    if(!state.current.grid)return false;
    state.current.grid.visible=!state.current.grid.visible;
    return state.current.grid.visible;
+  },
+  selectMesh(meshId){
+   const root=state.current.current;
+   if(!root||typeof meshId!=='string')return false;
+   let match=null;
+   root.traverse(node=>{if(!match&&node.isMesh&&node.uuid===meshId)match=node});
+   if(!match)return false;
+   selectedMesh=match;
+   selectionBox.box.setFromObject(match);
+   selectionBox.visible=match.visible;
+   return true;
+  },
+  toggleMeshVisibility(meshId){
+   const root=state.current.current;
+   if(!root||typeof meshId!=='string')return null;
+   let match=null;
+   root.traverse(node=>{if(!match&&node.isMesh&&node.uuid===meshId)match=node});
+   if(!match)return null;
+   match.visible=!match.visible;
+   if(selectedMesh===match&&!match.visible)selectionBox.visible=false;
+   onLoaded(measure(root));
+   return match.visible;
   },
   applyActions(actions){
    let root=state.current.current;
