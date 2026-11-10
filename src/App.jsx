@@ -242,7 +242,7 @@ export default function App(){
     <h1>Private workspace</h1>
     <p>This Nova instance is password-protected. Enter the app password to continue.</p>
     <label htmlFor="nova-app-password">App password</label>
-    <input id="nova-app-password" type="password" autoComplete="current-password" value={authPassword} onChange={event=>setAuthPassword(event.target.value)} placeholder="Enter app password" required disabled={authBusy}/>
+    <input id="nova-app-password" type="password" autoComplete="current-password" maxLength={256} value={authPassword} onChange={event=>setAuthPassword(event.target.value)} placeholder="Enter app password" required disabled={authBusy}/>
     {authError&&<div className="auth-error" role="alert">{authError}</div>}
     <button className="auth-submit" type="submit" disabled={authBusy||!authPassword.trim()}>{authBusy?'Signing in…':'Sign in'}</button>
     <small>Your password is sent only to this server. The session cookie is HttpOnly.</small>
