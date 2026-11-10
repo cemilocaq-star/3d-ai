@@ -54,3 +54,19 @@ button,.toolbtn{min-height:36px}
 }
 
 .view canvas{touch-action:none}.viewport-loading{position:absolute;inset:0;display:grid;place-items:center;color:#91a7c4;font-size:12px;background:#0b101a}
+
+
+/* Loading feedback and API connectivity */
+.api-indicator.ready{background:#57c99a}
+.api-indicator.unconfigured{background:#e7b35b}
+.api-indicator.offline{background:#e4777f}
+.api-indicator.checking{background:#8395ad}
+.import-progress{position:absolute;z-index:5;top:12px;left:12px;right:12px;padding:10px 12px;border:1px solid #365276;border-radius:9px;background:#0d1725ed;box-shadow:0 8px 24px #0005;color:#dce9fa}
+.import-progress>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px}
+.import-progress b{font-weight:600}.import-progress>div:first-child span{color:#9bbbe2;font-variant-numeric:tabular-nums}
+.progress-track{height:5px;margin-top:8px;overflow:hidden;background:#26364c;border-radius:8px}
+.progress-track>span{display:block;height:100%;border-radius:8px;background:#78adf1;transition:width .18s ease}
+.progress-track>span.indeterminate{width:35%;animation:nova-progress 1.2s ease-in-out infinite}
+@keyframes nova-progress{0%{transform:translateX(-110%)}100%{transform:translateX(330%)}}
+.loaderror{line-height:1.5;max-height:40%;overflow:auto}
+@media(max-width:680px){.import-progress{top:8px;left:8px;right:8px;padding:9px 10px}.status{display:none}}
