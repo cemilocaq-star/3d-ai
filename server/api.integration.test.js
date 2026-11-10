@@ -1,6 +1,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 
@@ -21,6 +22,8 @@ async function freePort() {
   await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   return port;
 }
+
+const builtFrontendExists = existsSync(new URL('../dist/index.html', import.meta.url));
 
 before(async () => {
   provider = createServer(async (request, response) => {
@@ -72,6 +75,18 @@ after(async () => {
   if (provider?.listening) {
     await new Promise((resolve, reject) => provider.close(error => error ? reject(error) : resolve()));
   }
+});
+
+test('serves the production studio shell and hashed assets from the same origin', { skip: !builtFrontendExists }, async () => {
+  const response = await fetch(apiUrl + '/');
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Nova 3D AI Studio/);
+  const script = html.match(/src="([^"]+\.js)"/);
+  assert.ok(script, 'production page should include its built JavaScript bundle');
+  const asset = await fetch(new URL(script[1], apiUrl));
+  assert.equal(asset.status, 200);
+  assert.match(asset.headers.get('content-type') || '', /javascript/);
 });
 
 test('Nova health endpoint reports its own API version and provider readiness without leaking secrets', async () => {
