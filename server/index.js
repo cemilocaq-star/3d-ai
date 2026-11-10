@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { createRateLimiter } from './rate-limit.js';
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
@@ -18,7 +19,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', createRateLimiter({ windowMs: 60_000, max: 20 }), async (req, res) => {
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   if (!message) return res.status(400).json({ error: 'Message is required.' });
   if (message.length > 6000) return res.status(413).json({ error: 'Message is too long (maximum 6000 characters).' });
@@ -41,30 +42,23 @@ app.post('/api/chat', async (req, res) => {
   ].join(' ');
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
-    let upstream;
-    try {
-      upstream = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: message }
-          ],
-          temperature: 0.5,
-          max_tokens: 700
-        }),
-        signal: controller.signal
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
+    const upstream = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer ' + apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.5,
+        max_tokens: 700
+      }),
+      signal: AbortSignal.timeout(45_000)
+    });
 
     const payload = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
@@ -82,7 +76,7 @@ app.post('/api/chat', async (req, res) => {
     }
     return res.json({ reply: reply.trim(), model });
   } catch (error) {
-    const timedOut = error?.name === 'AbortError';
+    const timedOut = error?.name === 'AbortError' || error?.name === 'TimeoutError';
     return res.status(502).json({
       error: timedOut ? 'AI provider request timed out. Please try again.' : 'Could not reach the AI provider. Check the server connection.'
     });
