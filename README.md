@@ -50,11 +50,25 @@ The API accepts up to 16 recent user/assistant messages, requires the final mess
 
 ## Provider configuration
 
-- `NOVA_PROVIDER_API_KEY` is the server-side provider credential. `OPENAI_API_KEY` remains a backwards-compatible alias.
+- `NOVA_PROVIDER_API_KEY` is the server-side credential for remote providers. `OPENAI_API_KEY` remains a backwards-compatible alias. A key is not required when the configured OpenAI-compatible provider is bound to `localhost`, `127.0.0.1` or `::1`.
 - `NOVA_PROVIDER_BASE_URL` selects an OpenAI-compatible API base URL; HTTPS is required except for localhost development. Default: `https://api.openai.com/v1`.
 - `NOVA_MODEL` selects the provider model. Default: `gpt-4o-mini`.
 - Legacy `OPENAI_BASE_URL` and `OPENAI_MODEL` aliases are also supported.
 - Never put provider credentials in a `VITE_*` variable or browser code.
+
+### Local model provider (no provider API key)
+
+Nova can connect to an OpenAI-compatible inference server running on the same computer as the Nova API. Set its loopback URL and model identifier in the server environment, for example:
+
+```env
+NOVA_PROVIDER_API_KEY=
+NOVA_PROVIDER_BASE_URL=http://127.0.0.1:YOUR_PROVIDER_PORT/v1
+NOVA_MODEL=your-local-model-id
+```
+
+Only loopback HTTP addresses are allowed without a provider key. The local model server must implement the OpenAI-compatible `/chat/completions` endpoint. Keep both servers on your trusted computer/network; do not expose an unauthenticated local inference port to the internet.
+
+For phone use on the same Wi-Fi: start the production Nova server on the computer, then open that computer's LAN address and port `8787` on the phone (replace the address with your computer's actual LAN IP). The phone talks to Nova; Nova talks to the local model through loopback on the computer. Set `NOVA_APP_PASSWORD` and `NOVA_SESSION_SECRET` before allowing other devices on the network to connect.
 
 **Important distinction:** Nova now has its own API interface, assistant instructions and conversation flow, but it is not a newly trained foundation model. Natural-language responses still require a configured external OpenAI-compatible model provider. Without provider credentials, the API reports that it is not configured and does not fake responses.
 
