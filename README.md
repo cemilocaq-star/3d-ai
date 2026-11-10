@@ -29,7 +29,7 @@ Example request:
     { "role": "assistant", "content": "Hello! What would you like to discuss?" },
     { "role": "user", "content": "Can you help me plan a 3D scene?" }
   ],
-  "mode": "Nova Vision",
+  "mode": "Nova Studio",
   "asset": null
 }
 ```
