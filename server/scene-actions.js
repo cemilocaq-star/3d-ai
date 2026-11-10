@@ -47,6 +47,19 @@ export function normalizeSceneActions(input) {
       const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
       const nextColor = color(item.color);
       if ((objectName || objectId || objectIds?.length) && nextColor) actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(objectIds && { objectIds }), color: nextColor });
+    } else if (item.type === 'set_material_properties') {
+      const objectIds = normalizeObjectIds(item.objectIds);
+      const objectName = safeName(item.objectName);
+      const objectId = typeof item.objectId === 'string' && /^[0-9a-f-]{36}$/i.test(item.objectId) ? item.objectId : null;
+      const nextColor = item.color === undefined ? null : color(item.color);
+      const roughness = item.roughness === undefined ? null : item.roughness;
+      const metalness = item.metalness === undefined ? null : item.metalness;
+      const validRoughness = roughness === null || (typeof roughness === 'number' && Number.isFinite(roughness) && roughness >= 0 && roughness <= 1);
+      const validMetalness = metalness === null || (typeof metalness === 'number' && Number.isFinite(metalness) && metalness >= 0 && metalness <= 1);
+      const hasChange = nextColor || roughness !== null || metalness !== null;
+      if ((objectName || objectId || objectIds?.length) && hasChange && validRoughness && validMetalness && (item.color === undefined || nextColor)) {
+        actions.push({ type: item.type, ...(objectName && { objectName }), ...(objectId && { objectId }), ...(objectIds && { objectIds }), ...(nextColor && { color: nextColor }), ...(roughness !== null && { roughness }), ...(metalness !== null && { metalness }) });
+      }
     } else if (item.type === 'set_transform') {
       const objectIds = normalizeObjectIds(item.objectIds);
       const objectName = safeName(item.objectName);
