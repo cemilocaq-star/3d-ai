@@ -92,7 +92,8 @@ export default function App(){
     body:JSON.stringify({
      messages:conversation.map(item=>({role:item.role,content:item.text})),
      mode:model,
-     asset
+     asset,
+     selectedMeshId
     })
    });
    const data=await response.json().catch(()=>({}));
