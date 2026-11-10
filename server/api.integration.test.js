@@ -101,6 +101,8 @@ test('Nova health endpoint reports its own API version and provider readiness wi
   assert.equal(data.configured, true);
   assert.equal(data.model, 'nova-test-model');
   assert.equal(JSON.stringify(data).includes('integration-test-key'), false);
+  assert.equal(JSON.stringify(data).includes('integration-test-password'), false);
+  assert.equal(JSON.stringify(data).includes('integration-test-session-secret'), false);
 });
 
 test('password status is public and accurately reports the private workspace state', async () => {
@@ -138,6 +140,10 @@ test('rejects incorrect passwords and creates a signed HttpOnly session for a va
   const status = await fetch(apiUrl + '/api/v1/auth/status', { headers: { Cookie: apiCookie } });
   const authenticated = await status.json();
   assert.equal(authenticated.authenticated, true);
+  const tamperedCookie = apiCookie.replace(/\\.[^.]+$/, '.invalid-signature');
+  const rejectedSession = await fetch(apiUrl + '/api/v1/auth/status', { headers: { Cookie: tamperedCookie } });
+  const rejectedData = await rejectedSession.json();
+  assert.equal(rejectedData.authenticated, false);
 });
 
 test('blocks unauthenticated requests to the Nova chat endpoint', async () => {
@@ -196,4 +202,21 @@ test('logout clears the browser session cookie', async () => {
   const status = await fetch(apiUrl + '/api/v1/auth/status');
   const data = await status.json();
   assert.equal(data.authenticated, false);
+});
+
+test('limits repeated failed app-password login attempts', async () => {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(apiUrl + '/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'still-the-wrong-password' })
+    });
+    assert.equal(response.status, 401);
+  }
+  const limited = await fetch(apiUrl + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'integration-test-password' })
+  });
+  assert.equal(limited.status, 429);
 });
