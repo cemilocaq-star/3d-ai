@@ -160,6 +160,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   selectionBox.visible=false;
   scene.add(selectionBox);
   let selectedMesh=null;
+  let selectedMeshes=[];
   scene.background=new THREE.Color('#0b101a');
   const camera=new THREE.PerspectiveCamera(45,1,.01,10000);
   camera.position.set(4,3,5);
@@ -188,7 +189,13 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
   const animate=()=>{
    frame=requestAnimationFrame(animate);
    controls.update();
-   if(selectedMesh?.visible){selectionBox.box.setFromObject(selectedMesh);selectionBox.visible=true;selectionBox.updateMatrixWorld(true)}else selectionBox.visible=false;
+   const visibleSelected=selectedMeshes.filter(mesh=>mesh.visible);
+   if(visibleSelected.length){
+    selectionBox.box.makeEmpty();
+    visibleSelected.forEach(mesh=>selectionBox.box.union(new THREE.Box3().setFromObject(mesh)));
+    selectionBox.visible=true;
+    selectionBox.updateMatrixWorld(true);
+   }else selectionBox.visible=false;
    renderer.render(scene,camera);
   };
   animate();
@@ -199,6 +206,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
     if(loaded){scene.remove(loaded);disposeObject(loaded)}
     state.current.current=null;
     selectedMesh=null;
+    selectedMeshes=[];
     selectionBox.visible=false;
     onLoaded(null);
    },
@@ -207,6 +215,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
     if(previous){scene.remove(previous);disposeObject(previous)}
     state.current.current=object;
     selectedMesh=null;
+    selectedMeshes=[];
     selectionBox.visible=false;
     scene.add(object);
     const bounds=new THREE.Box3().setFromObject(object);
@@ -261,8 +270,14 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    root.traverse(node=>{if(node.isMesh&&ids.has(node.uuid)&&!first)first=node});
    if(!first)return false;
    selectedMesh=first;
-   selectionBox.box.setFromObject(first);
-   selectionBox.visible=first.visible;
+   selectedMeshes=[...ids].map(id=>{
+    let match=null;
+    root.traverse(node=>{if(!match&&node.isMesh&&node.uuid===id)match=node});
+    return match;
+   }).filter(Boolean);
+   selectionBox.box.makeEmpty();
+   selectedMeshes.filter(mesh=>mesh.visible).forEach(mesh=>selectionBox.box.union(new THREE.Box3().setFromObject(mesh)));
+   selectionBox.visible=selectedMeshes.some(mesh=>mesh.visible);
    return true;
   },
   selectMesh(meshId){
@@ -272,6 +287,7 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
    root.traverse(node=>{if(!match&&node.isMesh&&node.uuid===meshId)match=node});
    if(!match)return false;
    selectedMesh=match;
+   selectedMeshes=[match];
    selectionBox.box.setFromObject(match);
    selectionBox.visible=match.visible;
    return true;
@@ -299,7 +315,11 @@ const ModelViewer=forwardRef(function ModelViewer({file,onLoaded=()=>{}},ref){
     ? action.objectIds.map(objectId=>({...action,objectId,objectIds:undefined}))
     : [action]);
    const results=applySceneActions(root,expanded);
-   if(root)onLoaded(measure(root));
+   if(root){
+    selectedMeshes=selectedMeshes.filter(mesh=>root.getObjectByProperty('uuid',mesh.uuid)===mesh);
+    selectedMesh=selectedMeshes[0]||null;
+    onLoaded(measure(root));
+   }
    return results;
   },
   clearScene(){
