@@ -130,7 +130,7 @@ export default function App(){
   <main className="main">
    <header>
     <div className="crumb"><PanelLeft size={17}/><span>Workspace</span><i>/</i><b>Untitled project</b></div>
-    <div className="headerRight"><span className="status"><span/> {apiReady?'Nova API connected':'Nova API not configured'}</span><button className="share" onClick={()=>viewerRef.current?.exportGLB().catch(error=>setMessages(current=>[...current,{role:'assistant',text:error.message}]))}><Download size={14}/> Export GLB</button></div>
+    <div className="headerRight"><span className="status"><span/> {apiReady?'Nova API configured':'Nova API not configured'}</span><button className="share" onClick={()=>viewerRef.current?.exportGLB().catch(error=>setMessages(current=>[...current,{role:'assistant',text:error.message}]))}><Download size={14}/> Export GLB</button></div>
    </header>
    <div className="workspace">
     <section className="viewportPanel">
